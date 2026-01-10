@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TV Control Panel</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@radix-ui/colors@latest/slate.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@radix-ui/colors@latest/blue.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@radix-ui/colors@latest/green.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@radix-ui/colors@latest/red.css">
+    <style>
+        :root {
+            --slate1: #fcfcfd;
+            --slate2: #f9f9fb;
+            --slate3: #f0f0f3;
+            --slate4: #e8e8ec;
+            --slate5: #e0e1e6;
+            --slate6: #d9d9e0;
+            --slate7: #cdced6;
+            --slate8: #b9bbc6;
+            --slate9: #8b8d98;
+            --slate10: #80828d;
+            --slate11: #62636c;
+            --slate12: #1e1f24;
+        }
+
+        body {
+            background-color: var(--slate2);
+            color: var(--slate12);
+        }
+    </style>
+</head>
+
+<body class="min-h-screen">
+    <header class="bg-white border-b border-slate-200 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center">
+                    <svg class="h-8 w-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                    <h1 class="ml-3 text-xl font-semibold text-slate-900">TV Control Panel</h1>
+                </div>
+                <nav class="flex space-x-4">
+                    <a href="/status.html"
+                        class="px-3 py-2 rounded-md text-sm font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+                        data-nav-link="status">Status</a>
+                    <a href="/debug.html"
+                        class="px-3 py-2 rounded-md text-sm font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+                        data-nav-link="debug">Debug</a>
+                </nav>
+            </div>
+        </div>
+    </header>
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

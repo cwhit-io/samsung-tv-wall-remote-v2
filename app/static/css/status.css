@@ -1,0 +1,33 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 2rem;
+}
+
+table {
+    border-collapse: collapse;
+    width: 100%;
+}
+
+th,
+td {
+    border: 1px solid #ddd;
+    padding: 8px;
+}
+
+th {
+    background: #f4f4f4;
+}
+
+.online {
+    color: green;
+    font-weight: bold;
+}
+
+.offline {
+    color: red;
+    font-weight: bold;
+}
+
+button {
+    padding: 6px 12px;
+}

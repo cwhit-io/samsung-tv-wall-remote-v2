@@ -1,0 +1,12 @@
+fastapi
+uvicorn[standard]
+pytest
+httpx
+samsungtvws
+typer
+wakeonlan
+requests
+websocket-client
+websockets
+aiohttp
+async_timeout

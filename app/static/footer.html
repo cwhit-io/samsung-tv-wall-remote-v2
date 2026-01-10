@@ -1,0 +1,29 @@
+</main>
+<footer class="mt-auto bg-white border-t border-slate-200">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div class="flex items-center justify-between">
+            <p class="text-sm text-slate-500">
+                &copy; 2026 TV Control Panel. Built with FastAPI & Tailwind CSS.
+            </p>
+            <div class="flex space-x-4 text-sm text-slate-500">
+                <a href="https://github.com" class="hover:text-slate-700 transition-colors">GitHub</a>
+                <a href="/api/tvs" class="hover:text-slate-700 transition-colors">API</a>
+            </div>
+        </div>
+    </div>
+</footer>
+<script>
+    // Highlight active navigation link
+    const currentPage = window.location.pathname;
+    document.querySelectorAll('[data-nav-link]').forEach(link => {
+        const page = link.getAttribute('data-nav-link');
+        if ((currentPage === '/' && page === 'status') ||
+            (currentPage.includes(page) && page !== 'status')) {
+            link.classList.remove('text-slate-700', 'hover:text-slate-900');
+            link.classList.add('text-blue-600', 'bg-blue-50');
+        }
+    });
+</script>
+</body>
+
+</html>

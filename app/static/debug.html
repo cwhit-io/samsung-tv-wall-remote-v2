@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Tools - TV Control Panel</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@radix-ui/colors@latest/slate.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@radix-ui/colors@latest/blue.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@radix-ui/colors@latest/green.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@radix-ui/colors@latest/red.css">
+    <style>
+        :root {
+            --slate1: #0f1117;
+            --slate2: #13151d;
+            --slate12: #f1f3f5;
+        }
+
+        body {
+            background-color: var(--slate1);
+            color: var(--slate12);
+        }
+    </style>
+</head>
+
+<body class="min-h-screen bg-slate-950">
+    <header class="bg-slate-900 border-b border-slate-800 shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center">
+                    <svg class="h-8 w-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                    <h1 class="ml-3 text-xl font-semibold text-slate-100">TV Control Panel</h1>
+                </div>
+                <nav class="flex space-x-4">
+                    <a href="/"
+                        class="px-3 py-2 rounded-md text-sm font-medium text-slate-300 hover:text-slate-100 hover:bg-slate-800 transition-colors">Home</a>
+                    <a href="/status.html"
+                        class="px-3 py-2 rounded-md text-sm font-medium text-slate-300 hover:text-slate-100 hover:bg-slate-800 transition-colors">Status</a>
+                    <a href="/debug.html"
+                        class="px-3 py-2 rounded-md text-sm font-medium text-green-400 bg-green-950/50">Debug</a>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div class="mb-6">
+            <div class="flex items-center">
+                <svg class="h-8 w-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                </svg>
+                <h2 class="ml-3 text-2xl font-bold text-slate-100">Samsung TV Debug Tool</h2>
+            </div>
+            <p class="mt-1 text-sm text-slate-400">Network diagnostics and status monitoring</p>
+        </div>
+
+        <div id="errorBanner" class="mb-6 bg-red-900/30 border border-red-800 rounded-lg p-4 hidden">
+            <div class="flex">
+                <svg class="h-5 w-5 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd"
+                        d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                        clip-rule="evenodd" />
+                </svg>
+                <p class="ml-3 text-sm text-red-800">Failed to load TV configuration. Check that /config/tvs.json exists
+                    and is valid.</p>
+            </div>
+        </div>
+
+        <!-- TV Selection Section -->
+        <div class="bg-slate-900 rounded-lg shadow-xl border border-slate-800 p-6 mb-6">
+            <h3 class="text-lg font-semibold text-slate-100 mb-4">Select TV</h3>
+            <div class="mb-4">
+                <label for="tvSelect" class="block text-sm font-medium text-slate-300 mb-2">Choose a TV to
+                    debug:</label>
+                <select id="tvSelect"
+                    class="block w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm text-slate-100">
+                    <option value="">Loading TVs...</option>
+                </select>
+            </div>
+
+            <div id="tvInfo" class="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div class="bg-slate-800 rounded-lg p-4">
+                    <div class="text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">Name</div>
+                    <div id="infoName" class="text-sm font-medium text-slate-100">-</div>
+                </div>
+                <div class="bg-slate-800 rounded-lg p-4">
+                    <div class="text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">IP Address</div>
+                    <div id="infoIP" class="text-sm font-mono text-slate-100">-</div>
+                </div>
+                <div class="bg-slate-800 rounded-lg p-4">
+                    <div class="text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">MAC Address</div>
+                    <div id="infoMAC" class="text-sm font-mono text-slate-100">-</div>
+                </div>
+                <div class="bg-slate-800 rounded-lg p-4">
+                    <div class="text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">Model</div>
+                    <div id="infoModel" class="text-sm text-slate-100">-</div>
+                </div>
+                <div class="bg-slate-800 rounded-lg p-4">
+                    <div class="text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">Token</div>
+                    <div id="infoToken" class="text-sm font-mono text-slate-100 truncate">-</div>
+                </div>
+                <div class="bg-slate-800 rounded-lg p-4">
+                    <div class="text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">Last Updated</div>
+                    <div id="infoUpdated" class="text-sm text-slate-100">-</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Diagnostic Tests Section -->
+        <div class="bg-slate-900 rounded-lg shadow-xl border border-slate-800 p-6 mb-6">
+            <h3 class="text-lg font-semibold text-slate-100 mb-4">Diagnostic Tests</h3>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <button onclick="runTest('ping')" id="btnPing"
+                    class="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
+                    Ping Test
+                </button>
+                <button onclick="runTest('port8001')" id="btnPort8001"
+                    class="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
+                    Check Port 8001
+                </button>
+                <button onclick="runTest('port8002')" id="btnPort8002"
+                    class="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
+                    Check Port 8002
+                </button>
+                <button onclick="runTest('ssdp')" id="btnSsdp"
+                    class="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
+                    SSDP Discovery
+                </button>
+                <button onclick="sendWOL()" id="btnWol"
+                    class="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors">
+                    Wake (WOL)
+                </button>
+                <button onclick="verifyToken()" id="btnVerify"
+                    class="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
+                    Verify Token
+                </button>
+                <button onclick="fetchFullStatus()" id="btnFetchStatus"
+                    class="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
+                    Get Full Status
+                </button>
+                <button onclick="togglePower()" id="btnPowerToggle"
+                    class="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-colors">
+                    Power Off (WS)
+                </button>
+                <button onclick="runTest('all')" id="btnAll"
+                    class="px-4 py-2 border border-slate-600 text-sm font-medium rounded-md text-slate-200 bg-slate-800 hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
+                    Run All Tests
+                </button>
+            </div>
+        </div>
+
+        <!-- Token Pairing Section -->
+        <div class="bg-slate-900 rounded-lg shadow-xl border border-slate-800 p-6 mb-6">
+            <h3 class="text-lg font-semibold text-slate-100 mb-4">Token Pairing</h3>
+            <div class="mb-4">
+                <p class="text-sm text-slate-400 mb-4">
+                    Request a new authentication token from the TV. This will trigger a pairing prompt on the TV screen
+                    that you must accept.
+                </p>
+                <div class="bg-slate-800 rounded-lg p-4 mb-4">
+                    <h4 class="text-sm font-medium text-slate-300 mb-2">Instructions:</h4>
+                    <ol class="text-sm text-slate-400 space-y-1 list-decimal list-inside">
+                        <li>Ensure the TV is fully ON (not in standby mode)</li>
+                        <li>Click "Request New Token" below</li>
+                        <li>Check the TV screen for a pairing prompt</li>
+                        <li>Use the TV remote to select "Allow"</li>
+                        <li>The new token will be displayed here</li>
+                    </ol>
+                </div>
+                <button onclick="requestNewToken()" id="btnRequestToken"
+                    class="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                    Request New Token
+                </button>
+                <div id="tokenResult" class="mt-4 p-4 bg-slate-800 rounded-lg hidden">
+                    <h4 class="text-sm font-medium text-slate-300 mb-2">Result:</h4>
+                    <div id="tokenOutput" class="text-sm font-mono text-green-400"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Debug Log Section -->
+        <div class="bg-slate-900 rounded-lg shadow-xl border border-slate-800 p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-slate-100">Debug Log</h3>
+                <button onclick="clearLog()"
+                    class="px-3 py-1 text-xs font-medium text-slate-300 bg-slate-800 hover:bg-slate-700 rounded-md transition-colors">
+                    Clear Log
+                </button>
+            </div>
+            <div id="logContainer"
+                class="bg-slate-950 rounded-lg p-4 font-mono text-sm max-h-96 overflow-y-auto border border-slate-800">
+                <div class="text-blue-400">
+                    <span class="text-slate-500">[--:--:--]</span> Waiting for TV selection...
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="mt-auto bg-slate-900 border-t border-slate-800">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <div class="flex items-center justify-between">
+                <p class="text-sm text-slate-500">
+                    &copy; 2026 TV Control Panel. Built with FastAPI & Tailwind CSS.
+                </p>
+                <div class="flex space-x-4 text-sm text-slate-500">
+                    <a href="https://github.com" class="hover:text-slate-300 transition-colors">GitHub</a>
+                    <a href="/api/tvs" class="hover:text-slate-300 transition-colors">API</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="/static/js/debug.js"></script>
+    <noscript>
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div class="bg-red-900/30 border border-red-800 rounded-lg p-4">
+                <p class="text-red-400">JavaScript is required for this page to function.</p>
+            </div>
+        </div>
+    </noscript>
+</body>
+
+</html>

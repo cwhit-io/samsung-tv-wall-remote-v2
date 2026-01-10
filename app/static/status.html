@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TV Status - Control Panel</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@radix-ui/colors@latest/slate.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@radix-ui/colors@latest/blue.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@radix-ui/colors@latest/green.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@radix-ui/colors@latest/red.css">
+  <style>
+    :root {
+      --slate1: #0f1117;
+      --slate2: #13151d;
+      --slate12: #f1f3f5;
+    }
+
+    body {
+      background-color: var(--slate1);
+      color: var(--slate12);
+    }
+  </style>
+</head>
+
+<body class="min-h-screen bg-slate-950">
+  <header class="bg-slate-900 border-b border-slate-800 shadow-lg">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-16">
+        <div class="flex items-center">
+          <svg class="h-8 w-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+          </svg>
+          <h1 class="ml-3 text-xl font-semibold text-slate-100">TV Control Panel</h1>
+        </div>
+        <nav class="flex space-x-4">
+          <a href="/"
+            class="px-3 py-2 rounded-md text-sm font-medium text-slate-300 hover:text-slate-100 hover:bg-slate-800 transition-colors">Home</a>
+          <a href="/status.html"
+            class="px-3 py-2 rounded-md text-sm font-medium text-blue-400 bg-blue-950/50">Status</a>
+          <a href="/debug.html"
+            class="px-3 py-2 rounded-md text-sm font-medium text-slate-300 hover:text-slate-100 hover:bg-slate-800 transition-colors">Debug</a>
+        </nav>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div class="mb-6">
+      <h2 class="text-2xl font-bold text-slate-100">TV Status Dashboard</h2>
+      <p class="mt-1 text-sm text-slate-400">
+        Auto-refresh every 10 seconds. Click a row to open the debug page for that TV.
+      </p>
+    </div>
+
+    <div class="bg-slate-900 rounded-lg shadow-xl border border-slate-800 overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-slate-700" id="tv-table">
+          <thead class="bg-slate-800">
+            <tr>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">IP
+                Address</th>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                Name</th>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                MAC Address</th>
+              <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-slate-400 uppercase tracking-wider">
+                Ping</th>
+              <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-slate-400 uppercase tracking-wider">
+                WebSocket</th>
+              <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-slate-400 uppercase tracking-wider">
+                Token</th>
+              <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-slate-400 uppercase tracking-wider">
+                Power</th>
+            </tr>
+          </thead>
+          <tbody class="bg-slate-900 divide-y divide-slate-800">
+            <!-- Content populated by JavaScript -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="loading" class="text-center py-8">
+      <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+      <p class="mt-2 text-sm text-slate-400">Loading TV status...</p>
+    </div>
+  </main>
+
+  <footer class="mt-auto bg-slate-900 border-t border-slate-800">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <div class="flex items-center justify-between">
+        <p class="text-sm text-slate-500">
+          &copy; 2026 TV Control Panel. Built with FastAPI & Tailwind CSS.
+        </p>
+        <div class="flex space-x-4 text-sm text-slate-500">
+          <a href="https://github.com" class="hover:text-slate-300 transition-colors">GitHub</a>
+          <a href="/api/tvs" class="hover:text-slate-300 transition-colors">API</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="/static/js/status.js"></script>
+  <noscript>
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div class="bg-red-900/30 border border-red-800 rounded-lg p-4">
+        <p class="text-red-400">JavaScript is required for this page to function.</p>
+      </div>
+    </div>
+  </noscript>
+</body>
+
+</html>
