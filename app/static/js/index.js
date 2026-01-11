@@ -128,8 +128,8 @@ async function activateSelectedLayer() {
     const layerSelect = document.getElementById('layer-select');
     const selectedLayer = parseInt(layerSelect.value);
     
-    if (isNaN(selectedLayer) || selectedLayer < 1) {
-        alert('Please select a layer first');
+    if (isNaN(selectedLayer) || selectedLayer < 0) {
+        alert('Please select a valid layer');
         return;
     }
     
@@ -154,8 +154,8 @@ async function triggerSelectedClip() {
     const clipSelect = document.getElementById('clip-select');
     const selectedClip = parseInt(clipSelect.value);
     
-    if (isNaN(selectedClip) || selectedClip < 1) {
-        alert('Please select a clip first');
+    if (isNaN(selectedClip) || selectedClip < 0) {
+        alert('Please select a valid clip');
         return;
     }
     
