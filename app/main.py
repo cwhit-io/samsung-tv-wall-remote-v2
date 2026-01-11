@@ -3,6 +3,8 @@ from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 from typing import List
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 
 from app.config import load_tvs, save_tvs, CONFIG_PATH
 from app.models import TV, WakeRequest
@@ -85,20 +87,37 @@ def wake_tv(ip: str, req: WakeRequest):
 
 
 @router.post("/tvs/{ip}/power")
-def toggle_power_tv(ip: str):
-    """Toggle TV power state."""
+async def toggle_power_tv(ip: str):
+    """Toggle TV power state. If TV is offline, sends WOL first."""
     tvs = _get_tvs_dict()
     if ip not in tvs:
         raise HTTPException(status_code=404, detail="TV not found")
 
     token = tvs[ip].get("token")
     ws_port = tvs[ip].get("ws_port", 8002)
+    mac = tvs[ip].get("mac")
+    
+    # Check if TV is online
+    is_online = utils.cached_ping_host(ip, force=True)
+    wol_was_sent = False
+    
+    # If offline and we have a MAC address, send WOL first
+    if not is_online and mac:
+        try:
+            wol.send_magic_packet_unicast(mac, ip, 9)
+            wol_was_sent = True
+            # Wait for TV to wake up (typically takes 3-5 seconds)
+            await asyncio.sleep(5)
+            # Force refresh ping cache to see if it's now online
+            is_online = utils.cached_ping_host(ip, force=True)
+        except Exception as e:
+            # If WOL fails, we'll still try to toggle power in case it's actually on
+            pass
 
     try:
         success = utils.toggle_power(ip, ws_port, token)
         if success:
-            # Clear power state cache to force refresh
-            return {"ip": ip, "status": "toggled"}
+            return {"ip": ip, "status": "toggled", "wol_sent": wol_was_sent}
         else:
             raise HTTPException(status_code=500, detail="Failed to toggle power")
     except Exception as e:
@@ -249,6 +268,127 @@ def refresh_all_tokens():
         "skipped_count": len(results["skipped"]),
         "results": results
     }
+
+
+@router.post("/tvs/broadcast-key")
+async def broadcast_key_to_all(request: dict):
+    """Send a key command to all TVs in parallel.
+    
+    For power commands (KEY_POWER), sends WOL to offline TVs first.
+    
+    Request body should contain:
+    {
+        "key": "KEY_MUTE" // or any other Samsung TV key code
+    }
+    
+    Returns a summary of successful and failed commands.
+    """
+    if "key" not in request:
+        raise HTTPException(status_code=400, detail="Missing 'key' in request body")
+    
+    key = request["key"]
+    tvs = _get_tvs_dict()
+    
+    results = {
+        "success": [],
+        "failed": [],
+        "skipped": [],
+        "wol_sent": []
+    }
+    
+    # First pass: Send WOL to all offline TVs if it's a power command
+    if key in ["KEY_POWER", "KEY_POWEROFF", "KEY_POWERON"]:
+        for ip, tv_data in tvs.items():
+            mac = tv_data.get("mac")
+            if mac and not utils.cached_ping_host(ip, force=True):
+                try:
+                    wol.send_magic_packet_unicast(mac, ip, 9)
+                    results["wol_sent"].append({
+                        "ip": ip,
+                        "name": tv_data.get("name", ip)
+                    })
+                except Exception:
+                    pass
+        
+        # Wait for TVs to wake up if we sent any WOL packets
+        if results["wol_sent"]:
+            await asyncio.sleep(5)
+    
+    # Function to send key to a single TV
+    def send_to_tv(ip: str, tv_data: dict):
+        tv_name = tv_data.get("name", ip)
+        port = tv_data.get("ws_port", 8002)
+        token = tv_data.get("token")
+        
+        # Check if TV is online (force refresh to get latest status)
+        if not utils.cached_ping_host(ip, force=True):
+            return {
+                "status": "skipped",
+                "ip": ip,
+                "name": tv_name,
+                "reason": "TV offline"
+            }
+        
+        # Skip if websocket port is not accessible
+        if not utils.cached_check_tcp_port(ip, port, force=True):
+            return {
+                "status": "skipped",
+                "ip": ip,
+                "name": tv_name,
+                "reason": f"WebSocket port {port} not accessible"
+            }
+        
+        # Try to send the key
+        try:
+            utils.send_key_command(ip, key, port, token)
+            return {
+                "status": "success",
+                "ip": ip,
+                "name": tv_name,
+                "key": key
+            }
+        except Exception as e:
+            return {
+                "status": "failed",
+                "ip": ip,
+                "name": tv_name,
+                "error": str(e)
+            }
+    
+    # Execute all commands in parallel using ThreadPoolExecutor
+    with ThreadPoolExecutor(max_workers=len(tvs)) as executor:
+        # Submit all tasks
+        futures = {
+            executor.submit(send_to_tv, ip, tv_data): (ip, tv_data)
+            for ip, tv_data in tvs.items()
+        }
+        
+        # Collect results as they complete
+        for future in futures:
+            result = future.result()
+            status = result.pop("status")
+            if status == "success":
+                results["success"].append(result)
+            elif status == "failed":
+                results["failed"].append(result)
+            else:  # skipped
+                results["skipped"].append(result)
+    
+    response = {
+        "key": key,
+        "total": len(tvs),
+        "success_count": len(results["success"]),
+        "failed_count": len(results["failed"]),
+        "skipped_count": len(results["skipped"]),
+        "results": results
+    }
+    
+    # Add WOL info if any WOL packets were sent
+    if results["wol_sent"]:
+        response["wol_sent_count"] = len(results["wol_sent"])
+        response["wol_sent"] = results["wol_sent"]
+    
+    return response
 
 
 # Include API router under /api

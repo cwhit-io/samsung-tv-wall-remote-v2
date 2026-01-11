@@ -412,6 +412,50 @@ def toggle_power(
     return False
 
 
+def send_key_command(
+    host: str,
+    key: str,
+    port: int = 8002,
+    token: str | None = None,
+    timeout: float = 5.0,
+) -> bool:
+    """Send a key command to a Samsung TV.
+    
+    Args:
+        host: TV IP address
+        key: Key command to send (e.g., 'KEY_POWER', 'KEY_MUTE', 'KEY_VOLUP')
+        port: WebSocket port (default 8002)
+        token: Authentication token
+        timeout: Connection timeout
+        
+    Returns:
+        True if command was sent successfully
+        
+    Raises:
+        Exception on failure
+    """
+    from samsungtvws import SamsungTVWS
+    import time
+
+    try:
+        client = SamsungTVWS(
+            host=host,
+            port=port,
+            token=token,
+            timeout=timeout,
+            name="TV Control Panel",
+        )
+        
+        client.open()
+        time.sleep(0.5)  # Brief stabilization delay
+        client.send_key(key)
+        client.close()
+        return True
+        
+    except Exception as e:
+        raise RuntimeError(f"Failed to send key '{key}' to {host}: {e}")
+
+
 def request_new_token(
     host: str, port: int = 8002, app_name: str = "TokenRequest", timeout: float = 30.0
 ) -> str:

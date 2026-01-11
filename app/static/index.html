@@ -8,154 +8,66 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@radix-ui/colors@latest/slate.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@radix-ui/colors@latest/blue.css">
-    <style>
-        :root {
-            --slate1: #0f1117;
-            --slate2: #13151d;
-            --slate12: #f1f3f5;
-        }
-
-        body {
-            background-color: var(--slate1);
-            color: var(--slate12);
-        }
-    </style>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@radix-ui/colors@latest/green.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@radix-ui/colors@latest/red.css">
+    <link rel="stylesheet" href="/static/css/index.css">
 </head>
 
 <body class="min-h-screen bg-slate-950">
     <header class="bg-slate-900 border-b border-slate-800 shadow-lg">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="max-w-full mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex items-center justify-between h-16">
                 <div class="flex items-center">
-                    <svg class="h-8 w-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="h-8 w-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                             d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                     </svg>
-                    <h1 class="ml-3 text-xl font-semibold text-slate-900">TV Control Panel</h1>
+                    <h1 class="ml-3 text-xl font-semibold text-slate-100">TV Control Panel</h1>
                 </div>
                 <nav class="flex space-x-4">
                     <a href="/" class="px-3 py-2 rounded-md text-sm font-medium text-blue-400 bg-blue-950/50">Home</a>
                     <a href="/status.html"
-                        class="px-3 py-2 rounded-md text-sm font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-100 transition-colors">Status</a>
+                        class="px-3 py-2 rounded-md text-sm font-medium text-slate-300 hover:text-slate-100 hover:bg-slate-800 transition-colors">Status</a>
                     <a href="/debug.html"
-                        class="px-3 py-2 rounded-md text-sm font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-100 transition-colors">Debug</a>
+                        class="px-3 py-2 rounded-md text-sm font-medium text-slate-300 hover:text-slate-100 hover:bg-slate-800 transition-colors">Debug</a>
                 </nav>
             </div>
         </div>
     </header>
 
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div class="text-center mb-12">
-            <h2 class="text-4xl font-bold text-slate-100 mb-4">Welcome to TV Control Panel</h2>
-            <p class="text-lg text-slate-400 max-w-2xl mx-auto">
-                Manage and monitor your Samsung TVs with ease. Check network status, verify tokens, and wake devices
-                remotely.
-            </p>
-        </div>
-
-        <div class="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-            <!-- Status Card -->
-            <a href="/" class="group block">
-                <div
-                    class="bg-slate-900 rounded-lg shadow-xl hover:shadow-2xl transition-shadow p-6 border border-slate-800 hover:border-blue-600">
-                    <div class="flex items-center mb-4">
-                        <div class="bg-blue-900/30 rounded-full p-3">
-                            <svg class="h-6 w-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                            </svg>
-                        </div>
-                        <h3
-                            class="ml-4 text-xl font-semibold text-slate-100 group-hover:text-blue-400 transition-colors">
-                            TV Status Dashboard</h3>
-                    </div>
-                    <p class="text-slate-400">
-                        View real-time status of all TVs including network connectivity, WebSocket availability, and
-                        token verification.
-                    </p>
-                    <div class="mt-4 flex items-center text-blue-400 group-hover:text-blue-300">
-                        <span class="text-sm font-medium">View Status</span>
-                        <svg class="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" fill="none"
-                            stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-                        </svg>
-                    </div>
-                </div>
-            </a>
-
-            <!-- Debug Card -->
-            <a href="/debug.html" class="group block">
-                <div
-                    class="bg-slate-900 rounded-lg shadow-xl hover:shadow-2xl transition-shadow p-6 border border-slate-800 hover:border-green-600">
-                    <div class="flex items-center mb-4">
-                        <div class="bg-green-900/30 rounded-full p-3">
-                            <svg class="h-6 w-6 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
-                            </svg>
-                        </div>
-                        <h3
-                            class="ml-4 text-xl font-semibold text-slate-100 group-hover:text-green-400 transition-colors">
-                            Debug Tools</h3>
-                    </div>
-                    <p class="text-slate-400">
-                        Run diagnostic tests, verify tokens, check ports, and troubleshoot network issues with
-                        individual TVs.
-                    </p>
-                    <div class="mt-4 flex items-center text-green-400 group-hover:text-green-300">
-                        <span class="text-sm font-medium">Open Debug Tools</span>
-                        <svg class="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" fill="none"
-                            stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-                        </svg>
-                    </div>
-                </div>
-            </a>
-        </div>
-
-        <!-- Features Section -->
-        <div class="mt-16">
-            <h3 class="text-2xl font-bold text-slate-100 text-center mb-8">Features</h3>
-            <div class="grid md:grid-cols-3 gap-6">
-                <div class="bg-slate-900 rounded-lg p-6 border border-slate-800">
-                    <div class="bg-purple-900/30 rounded-full p-3 w-12 h-12 flex items-center justify-center mb-4">
-                        <svg class="h-6 w-6 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M13 10V3L4 14h7v7l9-11h-7z" />
-                        </svg>
-                    </div>
-                    <h4 class="text-lg font-semibold text-slate-100 mb-2">Wake on LAN</h4>
-                    <p class="text-slate-400 text-sm">Send magic packets to wake up TVs remotely over the network.</p>
-                </div>
-
-                <div class="bg-slate-900 rounded-lg p-6 border border-slate-800">
-                    <div class="bg-orange-900/30 rounded-full p-3 w-12 h-12 flex items-center justify-center mb-4">
-                        <svg class="h-6 w-6 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                        </svg>
-                    </div>
-                    <h4 class="text-lg font-semibold text-slate-100 mb-2">Token Verification</h4>
-                    <p class="text-slate-400 text-sm">Verify WebSocket authentication tokens for secure TV control.</p>
-                </div>
-
-                <div class="bg-slate-900 rounded-lg p-6 border border-slate-800">
-                    <div class="bg-teal-900/30 rounded-full p-3 w-12 h-12 flex items-center justify-center mb-4">
-                        <svg class="h-6 w-6 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                        </svg>
-                    </div>
-                    <h4 class="text-lg font-semibold text-slate-100 mb-2">Auto-Refresh</h4>
-                    <p class="text-slate-400 text-sm">Real-time monitoring with automatic status updates every 10
-                        seconds.</p>
-                </div>
+    <main class="max-w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div class="mb-6 flex items-center justify-between">
+            <h2 class="text-2xl font-bold text-slate-100">TV Grid</h2>
+            <div class="flex items-center gap-3">
+                <button onclick="toggleAllPower()" id="btnTogglePower"
+                    class="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                    Toggle All Power
+                </button>
+                <button onclick="refreshNow()" id="btnRefresh"
+                    class="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    Refresh
+                </button>
             </div>
+        </div>
+
+        <div id="tv-grid" class="grid grid-cols-5 gap-4">
+            <!-- TV cards will be populated here by JavaScript -->
+        </div>
+
+        <div id="loading" class="text-center py-16">
+            <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+            <p class="mt-4 text-sm text-slate-400">Loading TVs...</p>
         </div>
     </main>
 
     <footer class="mt-auto bg-slate-900 border-t border-slate-800">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div class="max-w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
             <div class="flex items-center justify-between">
                 <p class="text-sm text-slate-500">
                     &copy; 2026 TV Control Panel. Built with FastAPI & Tailwind CSS.
@@ -167,6 +79,16 @@
             </div>
         </div>
     </footer>
+
+    <script src="/static/js/index.js"></script>
+
+    <noscript>
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div class="bg-red-900/30 border border-red-800 rounded-lg p-4">
+                <p class="text-red-400">JavaScript is required for this page to function.</p>
+            </div>
+        </div>
+    </noscript>
 </body>
 
 </html>
