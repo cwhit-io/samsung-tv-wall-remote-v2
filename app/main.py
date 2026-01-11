@@ -22,6 +22,11 @@ from fastapi import APIRouter
 
 router = APIRouter(prefix="/api")
 
+# Resolume configuration
+RESOLUME_IP = "10.10.97.83"
+RESOLUME_PORT = "8080"
+RESOLUME_BASE_URL = f"http://{RESOLUME_IP}:{RESOLUME_PORT}/api/v1"
+
 
 def _get_tvs_dict():
     return load_tvs()
@@ -393,19 +398,52 @@ async def broadcast_key_to_all(request: dict):
     return response
 
 
-@router.get("/thumbnail")
-async def get_thumbnail():
-    """Get the current thumbnail from Resolume and return as image."""
+@router.post("/tvs/{ip}/send-key")
+async def send_key_to_tv(ip: str, request: dict):
+    """Send a key command to a specific TV.
+    
+    Request body should contain:
+    {
+        "key": "KEY_MUTE" // or any other Samsung TV key code
+    }
+    
+    Returns confirmation of the command sent.
+    """
+    if "key" not in request:
+        raise HTTPException(status_code=400, detail="Missing 'key' in request body")
+    
+    tvs = _get_tvs_dict()
+    if ip not in tvs:
+        raise HTTPException(status_code=404, detail="TV not found")
+    
+    key = request["key"]
+    tv_data = tvs[ip]
+    tv_name = tv_data.get("name", ip)
+    port = tv_data.get("ws_port", 8002)
+    token = tv_data.get("token")
+    
     try:
-        # Use the same config from thumbnail.py
-        IP = "10.10.97.83"
-        PORT = "8080"
-        LAYER_INDEX = 1
-        
-        base_url = f"http://{IP}:{PORT}/api/v1"
-        
+        utils.send_key_command(ip, key, port, token)
+        return {
+            "ip": ip,
+            "name": tv_name,
+            "key": key,
+            "status": "sent"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to send key: {str(e)}")
+
+
+@router.get("/thumbnail")
+async def get_thumbnail(layer: int = 1):
+    """Get the current thumbnail from Resolume and return as image.
+    
+    Query parameter:
+        layer: Layer index to get thumbnail from (default: 1)
+    """
+    try:
         # Get Layer Info to find the Active Clip
-        layer_response = requests.get(f"{base_url}/composition/layers/{LAYER_INDEX}", timeout=5)
+        layer_response = requests.get(f"{RESOLUME_BASE_URL}/composition/layers/{layer}", timeout=5)
         layer_response.raise_for_status()
         layer_data = layer_response.json()
         
@@ -424,7 +462,7 @@ async def get_thumbnail():
             return Response(content=transparent_pixel, media_type="image/png")
         
         # Get the Thumbnail for that Clip ID
-        thumb_url = f"{base_url}/composition/clips/by-id/{active_clip_id}/thumbnail"
+        thumb_url = f"{RESOLUME_BASE_URL}/composition/clips/by-id/{active_clip_id}/thumbnail"
         thumb_response = requests.get(thumb_url, timeout=5)
         thumb_response.raise_for_status()
         
@@ -442,6 +480,105 @@ async def get_thumbnail():
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+
+
+@router.get("/resolume/layers")
+def get_resolume_layers():
+    """Get list of all layers from Resolume."""
+    try:
+        response = requests.get(f"{RESOLUME_BASE_URL}/composition/layers", timeout=5)
+        response.raise_for_status()
+        
+        layers_data = response.json()
+        # Return simplified layer info
+        layers = []
+        for layer in layers_data:
+            if isinstance(layer, dict):
+                layers.append({
+                    "id": layer.get("id"),
+                    "name": layer.get("name", {}).get("value", "Unknown"),
+                    "index": layer.get("index")
+                })
+        
+        return {"layers": layers}
+        
+    except requests.exceptions.Timeout:
+        raise HTTPException(status_code=504, detail="Resolume server timeout")
+    except requests.exceptions.ConnectionError:
+        raise HTTPException(status_code=503, detail="Cannot connect to Resolume server")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get layers: {str(e)}")
+
+
+@router.post("/resolume/layer/{layer_index}/connect")
+def connect_resolume_layer(layer_index: int):
+    """Connect (activate) a specific layer in Resolume."""
+    try:
+        # Set the layer's connect value to true
+        response = requests.post(
+            f"{RESOLUME_BASE_URL}/composition/layers/{layer_index}/connect",
+            json={"value": True},
+            timeout=5
+        )
+        response.raise_for_status()
+        
+        return {"status": "success", "layer": layer_index}
+        
+    except requests.exceptions.Timeout:
+        raise HTTPException(status_code=504, detail="Resolume server timeout")
+    except requests.exceptions.ConnectionError:
+        raise HTTPException(status_code=503, detail="Cannot connect to Resolume server")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to connect layer: {str(e)}")
+
+
+@router.get("/resolume/layer/{layer_index}/clips")
+def get_resolume_layer_clips(layer_index: int):
+    """Get all clips for a specific layer."""
+    try:
+        response = requests.get(f"{RESOLUME_BASE_URL}/composition/layers/{layer_index}", timeout=5)
+        response.raise_for_status()
+        layer_data = response.json()
+        
+        clips = []
+        for clip in layer_data.get('clips', []):
+            if isinstance(clip, dict):
+                clips.append({
+                    "id": clip.get("id"),
+                    "name": clip.get("name", {}).get("value", "Unknown"),
+                    "connected": clip.get("connected", {}).get("value")
+                })
+        
+        return {"layer": layer_index, "clips": clips}
+        
+    except requests.exceptions.Timeout:
+        raise HTTPException(status_code=504, detail="Resolume server timeout")
+    except requests.exceptions.ConnectionError:
+        raise HTTPException(status_code=503, detail="Cannot connect to Resolume server")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get clips: {str(e)}")
+
+
+@router.post("/resolume/clip/{clip_id}/connect")
+def connect_resolume_clip(clip_id: int):
+    """Connect (trigger) a specific clip in Resolume."""
+    try:
+        # Trigger the clip by setting its connect value
+        response = requests.post(
+            f"{RESOLUME_BASE_URL}/composition/clips/by-id/{clip_id}/connect",
+            json={"value": True},
+            timeout=5
+        )
+        response.raise_for_status()
+        
+        return {"status": "success", "clip_id": clip_id}
+        
+    except requests.exceptions.Timeout:
+        raise HTTPException(status_code=504, detail="Resolume server timeout")
+    except requests.exceptions.ConnectionError:
+        raise HTTPException(status_code=503, detail="Cannot connect to Resolume server")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to connect clip: {str(e)}")
 
 
 # Include API router under /api

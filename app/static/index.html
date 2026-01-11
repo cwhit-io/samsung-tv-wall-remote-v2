@@ -38,26 +38,89 @@
     </header>
 
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <!-- Resolume Thumbnail -->
+        <!-- Resolume Section -->
         <div class="mb-6">
-            <div class="bg-slate-900 rounded-lg p-3 border border-slate-800">
-                <div class="flex items-center justify-between mb-2">
-                    <h3 class="text-sm font-semibold text-slate-100">Resolume Output</h3>
-                    <button onclick="refreshThumbnail(true)" 
-                        class="px-2 py-1 text-xs font-medium rounded text-white bg-slate-700 hover:bg-slate-600 transition-colors">
+            <div class="bg-slate-900 rounded-lg p-4 border border-slate-800">
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="text-lg font-semibold text-slate-100">Resolume Control</h3>
+                    <button onclick="loadResolumeData()" 
+                        class="px-3 py-1 text-xs font-medium rounded text-white bg-slate-700 hover:bg-slate-600 transition-colors">
                         Refresh
                     </button>
                 </div>
-                <div id="thumbnail-container" class="relative bg-slate-950 rounded overflow-hidden max-w-md" style="aspect-ratio: 16/9;">
-                    <img id="thumbnail-image" 
-                        class="w-full h-full object-contain" 
-                        alt="Resolume Thumbnail">
-                    <div id="thumbnail-loading" class="absolute inset-0 flex items-center justify-center">
-                        <div class="text-slate-500 text-xs">Loading...</div>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <!-- Thumbnail Display -->
+                    <div>
+                        <div class="text-xs font-semibold text-slate-300 mb-2">Current Output (Layer <span id="current-layer">1</span>)</div>
+                        <div id="thumbnail-container" class="relative bg-slate-950 rounded overflow-hidden" style="aspect-ratio: 16/9;">
+                            <img id="thumbnail-image" 
+                                class="w-full h-full object-contain" 
+                                alt="Resolume Thumbnail">
+                            <div id="thumbnail-loading" class="absolute inset-0 flex items-center justify-center">
+                                <div class="text-slate-500 text-xs">Loading...</div>
+                            </div>
+                            <div id="thumbnail-error" class="absolute inset-0 flex items-center justify-center hidden">
+                                <div class="text-red-400 text-xs">Failed to load</div>
+                            </div>
+                        </div>
                     </div>
-                    <div id="thumbnail-error" class="absolute inset-0 flex items-center justify-center hidden">
-                        <div class="text-red-400 text-xs">Failed to load</div>
+                    
+                    <!-- Layer & Clip Controls -->
+                    <div class="space-y-3">
+                        <div>
+                            <label class="text-xs font-semibold text-slate-300 mb-2 block">Select Layer</label>
+                            <select id="layer-select" onchange="onLayerChange()" 
+                                class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-md text-sm text-slate-100">
+                                <option value="">Loading layers...</option>
+                            </select>
+                        </div>
+                        
+                        <div>
+                            <label class="text-xs font-semibold text-slate-300 mb-2 block">Select Clip</label>
+                            <select id="clip-select" 
+                                class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-md text-sm text-slate-100">
+                                <option value="">Select a layer first</option>
+                            </select>
+                        </div>
+                        
+                        <div class="flex gap-2">
+                            <button onclick="activateSelectedLayer()" 
+                                class="flex-1 px-3 py-2 text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 transition-colors">
+                                Activate Layer
+                            </button>
+                            <button onclick="triggerSelectedClip()" 
+                                class="flex-1 px-3 py-2 text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 transition-colors">
+                                Trigger Clip
+                            </button>
+                        </div>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Global Remote Control -->
+        <div class="mb-6">
+            <div class="bg-slate-900 rounded-lg p-4 border border-slate-800">
+                <h3 class="text-lg font-semibold text-slate-100 mb-3">Global Remote Control</h3>
+                <div class="text-xs text-slate-400 mb-3">Send commands to all TVs simultaneously</div>
+                <div class="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
+                    <button onclick="sendGlobalKey('KEY_POWER')" class="remote-btn bg-red-600 hover:bg-red-700">Power</button>
+                    <button onclick="sendGlobalKey('KEY_MUTE')" class="remote-btn bg-orange-600 hover:bg-orange-700">Mute</button>
+                    <button onclick="sendGlobalKey('KEY_VOLUP')" class="remote-btn bg-blue-600 hover:bg-blue-700">Vol+</button>
+                    <button onclick="sendGlobalKey('KEY_VOLDOWN')" class="remote-btn bg-blue-600 hover:bg-blue-700">Vol-</button>
+                    <button onclick="sendGlobalKey('KEY_CHUP')" class="remote-btn bg-purple-600 hover:bg-purple-700">Ch+</button>
+                    <button onclick="sendGlobalKey('KEY_CHDOWN')" class="remote-btn bg-purple-600 hover:bg-purple-700">Ch-</button>
+                    <button onclick="sendGlobalKey('KEY_UP')" class="remote-btn bg-slate-600 hover:bg-slate-700">Up</button>
+                    <button onclick="sendGlobalKey('KEY_DOWN')" class="remote-btn bg-slate-600 hover:bg-slate-700">Down</button>
+                    <button onclick="sendGlobalKey('KEY_LEFT')" class="remote-btn bg-slate-600 hover:bg-slate-700">Left</button>
+                    <button onclick="sendGlobalKey('KEY_RIGHT')" class="remote-btn bg-slate-600 hover:bg-slate-700">Right</button>
+                    <button onclick="sendGlobalKey('KEY_ENTER')" class="remote-btn bg-green-600 hover:bg-green-700">Enter</button>
+                    <button onclick="sendGlobalKey('KEY_RETURN')" class="remote-btn bg-slate-600 hover:bg-slate-700">Back</button>
+                    <button onclick="sendGlobalKey('KEY_HOME')" class="remote-btn bg-blue-600 hover:bg-blue-700">Home</button>
+                    <button onclick="sendGlobalKey('KEY_MENU')" class="remote-btn bg-blue-600 hover:bg-blue-700">Menu</button>
+                    <button onclick="sendGlobalKey('KEY_SOURCE')" class="remote-btn bg-purple-600 hover:bg-purple-700">Source</button>
+                    <button onclick="sendGlobalKey('KEY_INFO')" class="remote-btn bg-slate-600 hover:bg-slate-700">Info</button>
                 </div>
             </div>
         </div>
@@ -65,13 +128,6 @@
         <div class="mb-6 flex items-center justify-between">
             <h2 class="text-2xl font-bold text-slate-100">TV Grid</h2>
             <div class="flex items-center gap-3">
-                <button onclick="toggleAllPower()" id="btnTogglePower"
-                    class="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
-                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                    </svg>
-                    Toggle All Power
-                </button>
                 <button onclick="refreshNow()" id="btnRefresh"
                     class="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
                     <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -91,6 +147,57 @@
             <p class="mt-4 text-sm text-slate-400">Loading TVs...</p>
         </div>
     </main>
+
+    <!-- Individual TV Remote Modal -->
+    <div id="tv-remote-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50" onclick="closeRemoteModal(event)">
+        <div class="bg-slate-900 rounded-lg shadow-xl max-w-md w-full mx-4 border border-slate-800" onclick="event.stopPropagation()">
+            <div class="flex items-center justify-between p-4 border-b border-slate-800">
+                <h3 class="text-lg font-semibold text-slate-100" id="remote-modal-title">TV Remote</h3>
+                <button onclick="closeRemoteModal()" class="text-slate-400 hover:text-slate-100">
+                    <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            <div class="p-4">
+                <div class="grid grid-cols-3 gap-2">
+                    <!-- Power & Volume Row -->
+                    <button onclick="sendIndividualKey('KEY_POWER')" class="remote-btn bg-red-600 hover:bg-red-700 col-span-3">Power</button>
+                    <button onclick="sendIndividualKey('KEY_MUTE')" class="remote-btn bg-orange-600 hover:bg-orange-700">Mute</button>
+                    <button onclick="sendIndividualKey('KEY_VOLUP')" class="remote-btn bg-blue-600 hover:bg-blue-700">Vol+</button>
+                    <button onclick="sendIndividualKey('KEY_VOLDOWN')" class="remote-btn bg-blue-600 hover:bg-blue-700">Vol-</button>
+                    
+                    <!-- Navigation -->
+                    <div class="col-span-3 grid grid-cols-3 gap-2 my-2">
+                        <div></div>
+                        <button onclick="sendIndividualKey('KEY_UP')" class="remote-btn bg-slate-600 hover:bg-slate-700">↑</button>
+                        <div></div>
+                        <button onclick="sendIndividualKey('KEY_LEFT')" class="remote-btn bg-slate-600 hover:bg-slate-700">←</button>
+                        <button onclick="sendIndividualKey('KEY_ENTER')" class="remote-btn bg-green-600 hover:bg-green-700">OK</button>
+                        <button onclick="sendIndividualKey('KEY_RIGHT')" class="remote-btn bg-slate-600 hover:bg-slate-700">→</button>
+                        <div></div>
+                        <button onclick="sendIndividualKey('KEY_DOWN')" class="remote-btn bg-slate-600 hover:bg-slate-700">↓</button>
+                        <div></div>
+                    </div>
+                    
+                    <!-- Function Keys -->
+                    <button onclick="sendIndividualKey('KEY_RETURN')" class="remote-btn bg-slate-600 hover:bg-slate-700">Back</button>
+                    <button onclick="sendIndividualKey('KEY_HOME')" class="remote-btn bg-blue-600 hover:bg-blue-700">Home</button>
+                    <button onclick="sendIndividualKey('KEY_MENU')" class="remote-btn bg-blue-600 hover:bg-blue-700">Menu</button>
+                    
+                    <!-- Channel & Source -->
+                    <button onclick="sendIndividualKey('KEY_CHUP')" class="remote-btn bg-purple-600 hover:bg-purple-700">Ch+</button>
+                    <button onclick="sendIndividualKey('KEY_SOURCE')" class="remote-btn bg-purple-600 hover:bg-purple-700">Source</button>
+                    <button onclick="sendIndividualKey('KEY_CHDOWN')" class="remote-btn bg-purple-600 hover:bg-purple-700">Ch-</button>
+                    
+                    <!-- Playback Controls -->
+                    <button onclick="sendIndividualKey('KEY_PLAY')" class="remote-btn bg-green-600 hover:bg-green-700">Play</button>
+                    <button onclick="sendIndividualKey('KEY_PAUSE')" class="remote-btn bg-yellow-600 hover:bg-yellow-700">Pause</button>
+                    <button onclick="sendIndividualKey('KEY_STOP')" class="remote-btn bg-red-600 hover:bg-red-700">Stop</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <footer class="mt-auto bg-slate-900 border-t border-slate-800">
         <div class="max-w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
