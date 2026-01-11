@@ -1,0 +1,19 @@
+[Unit]
+Description=TV WOL Service
+After=network.target
+
+[Service]
+Type=simple
+User=blackhawk
+WorkingDirectory=/home/blackhawk/tv2
+Environment="PATH=/home/blackhawk/tv2/.venv/bin"
+ExecStart=/home/blackhawk/tv2/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8001
+Restart=always
+RestartSec=10
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
