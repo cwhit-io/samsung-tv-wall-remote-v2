@@ -94,6 +94,53 @@ function disableButtons(disabled) {
     buttons.forEach(btn => btn.disabled = disabled);
 }
 
+// Wake all TVs
+async function wakeAllTVs() {
+    log('info', 'Sending WOL to all TVs...');
+    disableButtons(true);
+    
+    try {
+        const response = await fetch('/api/tvs/wake-all', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ port: 9 })
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        log('success', `WOL sent to ${data.success_count}/${data.total} TVs`);
+        
+        if (data.results.success.length > 0) {
+            data.results.success.forEach(tv => {
+                log('success', `  ✓ ${tv.name} (${tv.ip}) - MAC: ${tv.mac}`);
+            });
+        }
+        
+        if (data.results.failed.length > 0) {
+            data.results.failed.forEach(tv => {
+                log('error', `  ✗ ${tv.name} (${tv.ip}) - Error: ${tv.error}`);
+            });
+        }
+        
+        if (data.results.skipped.length > 0) {
+            data.results.skipped.forEach(tv => {
+                log('warning', `  - ${tv.name} (${tv.ip}) - ${tv.reason}`);
+            });
+        }
+        
+    } catch (error) {
+        log('error', `Failed to wake all TVs: ${error.message}`);
+    } finally {
+        disableButtons(false);
+    }
+}
+
 // Simulate ping test
 async function testPing(ip) {
     log('info', `Testing ping to ${ip}...`);

@@ -42,26 +42,36 @@ def list_tvs():
 
 
 @router.get("/tvs/status")
-def tvs_status():
-    """Return list of TVs with their online status (ping), websocket port check, and token verification."""
+def tvs_status(force: bool = False):
+    """Return list of TVs with their online status (ping), websocket port check, and token verification.
+    
+    Args:
+        force: If True, bypass cache and force fresh checks
+    """
     tvs = _get_tvs_dict()
     result = []
     for ip, data in tvs.items():
-        online = utils.cached_ping_host(ip)
+        ping_online = utils.cached_ping_host(ip, force=force)
         # default websocket port is 8002, allow override from config per-TV with key 'ws_port'
         ws_port = data.get("ws_port", 8002)
-        ws_online = utils.cached_check_tcp_port(ip, ws_port)
+        ws_online = utils.cached_check_tcp_port(ip, ws_port, force=force)
         token = data.get("token")
-        token_verified = utils.cached_check_websocket_endpoint(ip, ws_port, token)
+        token_verified = utils.cached_check_websocket_endpoint(ip, ws_port, token, force=force)
         power_state = (
-            utils.cached_get_power_state(ip, ws_port, token) if token_verified else None
+            utils.cached_get_power_state(ip, ws_port, token, force=force) if token_verified else None
         )
+        
+        # TV is considered "online" if either ping works OR websocket is accessible
+        # (Samsung TVs sometimes don't respond to ping but are actually on)
+        online = ping_online or ws_online
+        
         result.append(
             {
                 "ip": ip,
                 "name": data.get("name"),
                 "mac": data.get("mac"),
                 "online": online,
+                "ping_online": ping_online,
                 "ws_online": ws_online,
                 "token_verified": token_verified,
                 "power_state": power_state,
@@ -91,6 +101,52 @@ def wake_tv(ip: str, req: WakeRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"WOL failed: {e}")
     return {"ip": ip, "mac": mac, "port": req.port, "status": "sent"}
+
+
+@router.post("/tvs/wake-all")
+def wake_all_tvs(req: WakeRequest):
+    """Send WOL magic packets to all TVs."""
+    tvs = _get_tvs_dict()
+    results = {
+        "success": [],
+        "failed": [],
+        "skipped": []
+    }
+    
+    for ip, tv_data in tvs.items():
+        tv_name = tv_data.get("name", ip)
+        mac = tv_data.get("mac")
+        
+        if not mac:
+            results["skipped"].append({
+                "ip": ip,
+                "name": tv_name,
+                "reason": "No MAC address configured"
+            })
+            continue
+        
+        try:
+            wol.send_magic_packet_unicast(mac, ip, req.port)
+            results["success"].append({
+                "ip": ip,
+                "name": tv_name,
+                "mac": mac
+            })
+        except Exception as e:
+            results["failed"].append({
+                "ip": ip,
+                "name": tv_name,
+                "error": str(e)
+            })
+    
+    return {
+        "total": len(tvs),
+        "success_count": len(results["success"]),
+        "failed_count": len(results["failed"]),
+        "skipped_count": len(results["skipped"]),
+        "port": req.port,
+        "results": results
+    }
 
 
 @router.post("/tvs/{ip}/power")
@@ -508,6 +564,102 @@ def get_resolume_layers():
         raise HTTPException(status_code=503, detail="Cannot connect to Resolume server")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get layers: {str(e)}")
+
+
+@router.get("/resolume/columns")
+def get_resolume_columns():
+    """Get list of all columns from Resolume composition."""
+    try:
+        # Get composition to find column count
+        comp_response = requests.get(f"{RESOLUME_BASE_URL}/composition", timeout=5)
+        comp_response.raise_for_status()
+        comp_data = comp_response.json()
+        
+        # Try to get columns from the composition structure
+        # Columns might be in the composition object or we need to iterate through layers
+        columns = []
+        
+        # First, try to find how many columns exist by checking layer 1
+        layer1_response = requests.get(f"{RESOLUME_BASE_URL}/composition/layers/1", timeout=5)
+        if layer1_response.status_code == 200:
+            layer1_data = layer1_response.json()
+            clips = layer1_data.get('clips', [])
+            
+            # Get info for each column by index
+            for i in range(len(clips)):
+                column_index = i + 1
+                try:
+                    col_response = requests.get(f"{RESOLUME_BASE_URL}/composition/columns/{column_index}", timeout=2)
+                    if col_response.status_code == 200:
+                        col_data = col_response.json()
+                        columns.append({
+                            'index': column_index,
+                            'name': col_data.get('name', {}).get('value', f'Column {column_index}'),
+                            'connected': col_data.get('connected', {}).get('value', False)
+                        })
+                    else:
+                        # If column endpoint doesn't work, use clip name from layer 1
+                        clip = clips[i]
+                        columns.append({
+                            'index': column_index,
+                            'name': clip.get('name', {}).get('value', f'Column {column_index}'),
+                            'connected': clip.get('connected', {}).get('value', False)
+                        })
+                except:
+                    # Fallback: use clip info from layer 1
+                    if i < len(clips):
+                        clip = clips[i]
+                        columns.append({
+                            'index': column_index,
+                            'name': clip.get('name', {}).get('value', f'Column {column_index}'),
+                            'connected': clip.get('connected', {}).get('value', False)
+                        })
+        
+        return {'columns': columns}
+        
+    except requests.exceptions.Timeout:
+        raise HTTPException(status_code=504, detail="Resolume server timeout")
+    except requests.exceptions.ConnectionError:
+        raise HTTPException(status_code=503, detail="Cannot connect to Resolume server")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get columns: {str(e)}")
+
+
+@router.post("/resolume/column/{column_index}/connect")
+def trigger_resolume_column(column_index: int):
+    """Trigger (fire) a specific column in Resolume.
+    
+    Uses the official Resolume API column connect endpoint.
+    Column index is 1-based (Column 1, Column 2, etc.)
+    """
+    try:
+        # Use the official Resolume column connect endpoint
+        # Resolume expects plain data "1" not JSON
+        response = requests.post(
+            f"{RESOLUME_BASE_URL}/composition/columns/{column_index}/connect",
+            data="1",
+            headers={"Content-Type": "application/json"},
+            timeout=5
+        )
+        
+        # Resolume returns 204 No Content on success
+        if response.status_code not in [200, 204]:
+            response.raise_for_status()
+        
+        return {
+            "status": "success",
+            "column": column_index
+        }
+        
+    except requests.exceptions.Timeout:
+        raise HTTPException(status_code=504, detail="Resolume server timeout")
+    except requests.exceptions.ConnectionError:
+        raise HTTPException(status_code=503, detail="Cannot connect to Resolume server")
+    except requests.exceptions.HTTPError as e:
+        raise HTTPException(status_code=e.response.status_code, detail=f"Resolume API error: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to trigger column: {str(e)}")
+
 
 
 @router.post("/resolume/layer/{layer_index}/connect")

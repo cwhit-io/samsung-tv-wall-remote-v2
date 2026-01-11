@@ -3,7 +3,7 @@ let thumbnailRefreshInterval = null;
 let lastThumbnailFetch = 0;
 const THUMBNAIL_CACHE_MS = 60000; // 60 seconds
 let currentLayer = 1;
-let resolumeData = { layers: [], clips: [] };
+let resolumeColumns = [];
 let currentRemoteTV = null; // Track which TV the remote modal is controlling
 
 async function refreshThumbnail(force = false, layer = null) {
@@ -58,96 +58,73 @@ async function refreshThumbnail(force = false, layer = null) {
     }
 }
 
-async function loadResolumeData() {
+async function loadResolumeColumns() {
     try {
-        // Load layers
-        const layersRes = await fetch('/api/resolume/layers');
-        if (layersRes.ok) {
-            const data = await layersRes.json();
-            resolumeData.layers = data.layers || [];
-            
-            const layerSelect = document.getElementById('layer-select');
-            layerSelect.innerHTML = '<option value="">-- Select Layer --</option>';
-            
-            resolumeData.layers.forEach(layer => {
-                const option = document.createElement('option');
-                option.value = layer.index;
-                option.textContent = `Layer ${layer.index}: ${layer.name}`;
-                if (layer.index === currentLayer) {
-                    option.selected = true;
-                }
-                layerSelect.appendChild(option);
-            });
-            
-            // Load clips for current layer
-            if (currentLayer) {
-                await loadClipsForLayer(currentLayer);
-            }
-        }
-    } catch (err) {
-        console.error('Error loading Resolume data:', err);
-    }
-}
-
-async function loadClipsForLayer(layerIndex) {
-    try {
-        const res = await fetch(`/api/resolume/layer/${layerIndex}/clips`);
+        const res = await fetch('/api/resolume/columns');
         if (res.ok) {
             const data = await res.json();
-            resolumeData.clips = data.clips || [];
+            resolumeColumns = data.columns || [];
             
-            const clipSelect = document.getElementById('clip-select');
-            clipSelect.innerHTML = '<option value="">-- Select Clip --</option>';
+            const grid = document.getElementById('columns-grid');
+            grid.innerHTML = '';
             
-            resolumeData.clips.forEach(clip => {
-                const option = document.createElement('option');
-                option.value = clip.id;
-                const activeMarker = clip.connected ? ' ⬤' : '';
-                option.textContent = `${clip.name}${activeMarker}`;
-                clipSelect.appendChild(option);
+            // Filter out unused columns (Column #)
+            const usedColumns = resolumeColumns.filter(col => !col.name.includes('Column #'));
+            
+            if (usedColumns.length === 0) {
+                grid.innerHTML = '<div class="text-sm text-slate-400 col-span-2 text-center py-4">No columns found</div>';
+                return;
+            }
+            
+            usedColumns.forEach(column => {
+                const btn = document.createElement('button');
+                btn.onclick = () => triggerColumn(column.index);
+                // Check if column is connected (handle both boolean and string values)
+                const isConnected = column.connected === true || column.connected === 'Connected';
+                const isEmpty = column.connected === 'Empty';
+                
+                let activeClass;
+                if (isConnected) {
+                    activeClass = 'bg-green-600 hover:bg-green-700 border-green-500';
+                } else if (isEmpty) {
+                    activeClass = 'bg-slate-700 hover:bg-slate-600 border-slate-600';
+                } else {
+                    activeClass = 'bg-blue-600 hover:bg-blue-700 border-blue-500';
+                }
+                
+                btn.className = `px-3 py-2 text-sm font-medium rounded-md text-white ${activeClass} border transition-colors`;
+                btn.textContent = column.name || `Column ${column.index}`;
+                grid.appendChild(btn);
             });
         }
     } catch (err) {
-        console.error('Error loading clips:', err);
+        console.error('Error loading Resolume columns:', err);
+        const grid = document.getElementById('columns-grid');
+        grid.innerHTML = '<div class="text-sm text-red-400 col-span-2 text-center py-4">Error loading columns</div>';
     }
 }
 
-async function onLayerChange() {
-    const layerSelect = document.getElementById('layer-select');
-    const selectedLayer = parseInt(layerSelect.value);
-    
-    if (!isNaN(selectedLayer) && selectedLayer >= 0) {
-        currentLayer = selectedLayer;
-        document.getElementById('current-layer').textContent = currentLayer;
-        await loadClipsForLayer(selectedLayer);
-        await refreshThumbnail(true, selectedLayer);
-    }
-}
-
-async function activateSelectedLayer() {
-    const layerSelect = document.getElementById('layer-select');
-    const selectedLayer = parseInt(layerSelect.value);
-    
-    if (isNaN(selectedLayer) || selectedLayer < 0) {
-        alert('Please select a valid layer');
-        return;
-    }
-    
+async function triggerColumn(columnIndex) {
     try {
-        const res = await fetch(`/api/resolume/layer/${selectedLayer}/connect`, {
+        const res = await fetch(`/api/resolume/column/${columnIndex}/connect`, {
             method: 'POST'
         });
         
         if (res.ok) {
-            console.log(`Activated layer ${selectedLayer}`);
-            await refreshThumbnail(true, selectedLayer);
+            console.log(`Triggered column ${columnIndex}`);
+            // Refresh thumbnail and columns to show updated state
+            await Promise.all([refreshThumbnail(true), loadResolumeColumns()]);
         } else {
-            alert('Failed to activate layer');
+            console.error('Failed to trigger column');
         }
     } catch (err) {
-        console.error('Error activating layer:', err);
-        alert('Error activating layer');
+        console.error('Error triggering column:', err);
     }
+}
+
+async function loadResolumeData() {
+    // Keep for backward compatibility, now just calls loadResolumeColumns
+    await loadResolumeColumns();
 }
 
 async function triggerSelectedClip() {
@@ -402,7 +379,7 @@ async function refreshNow() {
 
 // Initial load and auto-refresh
 fetchTVs();
-loadResolumeData();
+loadResolumeColumns();
 refreshThumbnail(true); // Force initial load
 setInterval(fetchTVs, 10000); // Refresh every 10 seconds
 thumbnailRefreshInterval = setInterval(() => refreshThumbnail(false), 2000); // Check every 2 seconds but cache for 60s

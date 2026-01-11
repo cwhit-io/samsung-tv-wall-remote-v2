@@ -31,13 +31,19 @@ def send_magic_packet(mac: str, broadcast: str = "255.255.255.255", port: int = 
 
 
 def send_magic_packet_unicast(mac: str, target_ip: str, port: int = 9) -> None:
-    """Send a Wake-on-LAN magic packet directly (unicast) to target_ip:port."""
+    """Send a Wake-on-LAN magic packet using both unicast and broadcast for maximum reliability."""
     mac_bytes = _normalize_mac(mac)
     packet = b"\xff" * 6 + mac_bytes * 16
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
-        # Do not set broadcast option for unicast
+        # Send unicast packet directly to the target IP
         sock.sendto(packet, (target_ip, port))
+        
+        # Also send broadcast packet for better reliability
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+        # Calculate broadcast address for /20 network (10.10.96.0/20)
+        sock.sendto(packet, ("10.10.111.255", port))
+        sock.sendto(packet, ("255.255.255.255", port))
     finally:
         sock.close()

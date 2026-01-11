@@ -1,5 +1,6 @@
-async function fetchStatus() {
-    const res = await fetch('/api/tvs/status')
+async function fetchStatus(force = false) {
+    const url = force ? '/api/tvs/status?force=true' : '/api/tvs/status'
+    const res = await fetch(url)
     const tbody = document.querySelector('#tv-table tbody')
     const loading = document.querySelector('#loading')
 
@@ -66,7 +67,8 @@ async function refreshNow() {
         `
     }
     
-    await fetchStatus()
+    // Force refresh bypasses cache
+    await fetchStatus(true)
     
     if (btn) {
         btn.disabled = false
