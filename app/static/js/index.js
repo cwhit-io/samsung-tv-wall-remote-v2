@@ -2,9 +2,15 @@ let tvData = [];
 let thumbnailRefreshInterval = null;
 let lastThumbnailFetch = 0;
 const THUMBNAIL_CACHE_MS = 60000; // 60 seconds
+let currentLayer = 1;
+let resolumeData = { layers: [], clips: [] };
+let currentRemoteTV = null; // Track which TV the remote modal is controlling
 
-async function refreshThumbnail(force = false) {
+async function refreshThumbnail(force = false, layer = null) {
     const now = Date.now();
+    
+    // Use provided layer or current layer
+    const layerToUse = layer || currentLayer;
     
     // Check if we should skip due to cache (unless force refresh)
     if (!force && (now - lastThumbnailFetch) < THUMBNAIL_CACHE_MS) {
@@ -22,7 +28,7 @@ async function refreshThumbnail(force = false) {
     try {
         // Add timestamp to prevent browser caching
         const timestamp = new Date().getTime();
-        const response = await fetch(`/api/thumbnail?t=${timestamp}`);
+        const response = await fetch(`/api/thumbnail?layer=${layerToUse}&t=${timestamp}`);
         
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}`);
@@ -49,6 +55,196 @@ async function refreshThumbnail(force = false) {
         img.style.opacity = '1';
     } finally {
         loading.classList.add('hidden');
+    }
+}
+
+async function loadResolumeData() {
+    try {
+        // Load layers
+        const layersRes = await fetch('/api/resolume/layers');
+        if (layersRes.ok) {
+            const data = await layersRes.json();
+            resolumeData.layers = data.layers || [];
+            
+            const layerSelect = document.getElementById('layer-select');
+            layerSelect.innerHTML = '<option value="">-- Select Layer --</option>';
+            
+            resolumeData.layers.forEach(layer => {
+                const option = document.createElement('option');
+                option.value = layer.index;
+                option.textContent = `Layer ${layer.index}: ${layer.name}`;
+                if (layer.index === currentLayer) {
+                    option.selected = true;
+                }
+                layerSelect.appendChild(option);
+            });
+            
+            // Load clips for current layer
+            if (currentLayer) {
+                await loadClipsForLayer(currentLayer);
+            }
+        }
+    } catch (err) {
+        console.error('Error loading Resolume data:', err);
+    }
+}
+
+async function loadClipsForLayer(layerIndex) {
+    try {
+        const res = await fetch(`/api/resolume/layer/${layerIndex}/clips`);
+        if (res.ok) {
+            const data = await res.json();
+            resolumeData.clips = data.clips || [];
+            
+            const clipSelect = document.getElementById('clip-select');
+            clipSelect.innerHTML = '<option value="">-- Select Clip --</option>';
+            
+            resolumeData.clips.forEach(clip => {
+                const option = document.createElement('option');
+                option.value = clip.id;
+                const activeMarker = clip.connected ? ' ⬤' : '';
+                option.textContent = `${clip.name}${activeMarker}`;
+                clipSelect.appendChild(option);
+            });
+        }
+    } catch (err) {
+        console.error('Error loading clips:', err);
+    }
+}
+
+async function onLayerChange() {
+    const layerSelect = document.getElementById('layer-select');
+    const selectedLayer = parseInt(layerSelect.value);
+    
+    if (selectedLayer) {
+        currentLayer = selectedLayer;
+        document.getElementById('current-layer').textContent = currentLayer;
+        await loadClipsForLayer(selectedLayer);
+        await refreshThumbnail(true, selectedLayer);
+    }
+}
+
+async function activateSelectedLayer() {
+    const layerSelect = document.getElementById('layer-select');
+    const selectedLayer = parseInt(layerSelect.value);
+    
+    if (!selectedLayer) {
+        alert('Please select a layer first');
+        return;
+    }
+    
+    try {
+        const res = await fetch(`/api/resolume/layer/${selectedLayer}/connect`, {
+            method: 'POST'
+        });
+        
+        if (res.ok) {
+            console.log(`Activated layer ${selectedLayer}`);
+            await refreshThumbnail(true, selectedLayer);
+        } else {
+            alert('Failed to activate layer');
+        }
+    } catch (err) {
+        console.error('Error activating layer:', err);
+        alert('Error activating layer');
+    }
+}
+
+async function triggerSelectedClip() {
+    const clipSelect = document.getElementById('clip-select');
+    const selectedClip = parseInt(clipSelect.value);
+    
+    if (!selectedClip) {
+        alert('Please select a clip first');
+        return;
+    }
+    
+    try {
+        const res = await fetch(`/api/resolume/clip/${selectedClip}/connect`, {
+            method: 'POST'
+        });
+        
+        if (res.ok) {
+            console.log(`Triggered clip ${selectedClip}`);
+            await refreshThumbnail(true);
+            // Reload clips to update active status
+            await loadClipsForLayer(currentLayer);
+        } else {
+            alert('Failed to trigger clip');
+        }
+    } catch (err) {
+        console.error('Error triggering clip:', err);
+        alert('Error triggering clip');
+    }
+}
+
+async function sendGlobalKey(key) {
+    try {
+        const res = await fetch('/api/tvs/broadcast-key', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ key })
+        });
+
+        if (res.ok) {
+            const data = await res.json();
+            console.log(`Global key ${key} sent:`, data);
+            // Optional: Show a brief toast notification
+        } else {
+            const error = await res.text();
+            console.error(`Failed to send global key ${key}:`, error);
+            alert(`Failed to send command to all TVs`);
+        }
+    } catch (error) {
+        console.error(`Error sending global key ${key}:`, error);
+        alert(`Error sending command to all TVs`);
+    }
+}
+
+function openRemoteModal(ip, name) {
+    currentRemoteTV = { ip, name };
+    document.getElementById('remote-modal-title').textContent = `Remote: ${name}`;
+    const modal = document.getElementById('tv-remote-modal');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+}
+
+function closeRemoteModal(event) {
+    // If event is provided and target is not the backdrop, don't close
+    if (event && event.target.id !== 'tv-remote-modal') {
+        return;
+    }
+    
+    const modal = document.getElementById('tv-remote-modal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+    currentRemoteTV = null;
+}
+
+async function sendIndividualKey(key) {
+    if (!currentRemoteTV) {
+        console.error('No TV selected for remote control');
+        return;
+    }
+    
+    try {
+        const res = await fetch(`/api/tvs/${encodeURIComponent(currentRemoteTV.ip)}/send-key`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ key })
+        });
+
+        if (res.ok) {
+            const data = await res.json();
+            console.log(`Key ${key} sent to ${currentRemoteTV.name}:`, data);
+        } else {
+            const error = await res.text();
+            console.error(`Failed to send key ${key} to ${currentRemoteTV.name}:`, error);
+            alert(`Failed to send command to ${currentRemoteTV.name}`);
+        }
+    } catch (error) {
+        console.error(`Error sending key ${key} to ${currentRemoteTV.name}:`, error);
+        alert(`Error sending command to ${currentRemoteTV.name}`);
     }
 }
 
@@ -140,6 +336,10 @@ function renderTVGrid() {
                         class="flex-1 px-3 py-2 text-xs font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-colors">
                         Power
                     </button>
+                    <button onclick="openRemoteModal('${tv.ip}', '${tv.name}')" 
+                        class="flex-1 px-3 py-2 text-xs font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors">
+                        Remote
+                    </button>
                     <button onclick="window.location.href='/debug.html?ip=${encodeURIComponent(tv.ip)}'" 
                         class="flex-1 px-3 py-2 text-xs font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
                         Debug
@@ -200,54 +400,9 @@ async function refreshNow() {
     }
 }
 
-async function toggleAllPower() {
-    const btn = document.getElementById('btnTogglePower');
-    if (btn) {
-        btn.disabled = true;
-        btn.innerHTML = `
-            <svg class="h-4 w-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-            </svg>
-            Toggling...
-        `;
-    }
-    
-    try {
-        const res = await fetch('/api/tvs/broadcast-key', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ key: 'KEY_POWER' })
-        });
-
-        if (res.ok) {
-            const data = await res.json();
-            console.log('Power toggle broadcast result:', data);
-            // Wait a moment for TVs to process command, then refresh
-            await new Promise(resolve => setTimeout(resolve, 2000));
-            await fetchTVs();
-        } else {
-            const error = await res.text();
-            console.error('Failed to broadcast power toggle:', error);
-            alert('Failed to toggle power on all TVs');
-        }
-    } catch (error) {
-        console.error('Error broadcasting power toggle:', error);
-        alert('Error toggling power on all TVs');
-    } finally {
-        if (btn) {
-            btn.disabled = false;
-            btn.innerHTML = `
-                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-                Toggle All Power
-            `;
-        }
-    }
-}
-
 // Initial load and auto-refresh
 fetchTVs();
+loadResolumeData();
 refreshThumbnail(true); // Force initial load
 setInterval(fetchTVs, 10000); // Refresh every 10 seconds
 thumbnailRefreshInterval = setInterval(() => refreshThumbnail(false), 2000); // Check every 2 seconds but cache for 60s

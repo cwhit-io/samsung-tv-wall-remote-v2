@@ -56,3 +56,24 @@ body {
 .tv-card.offline {
     border: 2px solid #334155;
 }
+
+/* Remote button styling */
+.remote-btn {
+    padding: 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: white;
+    border-radius: 0.375rem;
+    transition: all 0.2s;
+    border: none;
+    cursor: pointer;
+}
+
+.remote-btn:active {
+    transform: scale(0.95);
+}
+
+.remote-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
