@@ -116,7 +116,7 @@ async function onLayerChange() {
     const layerSelect = document.getElementById('layer-select');
     const selectedLayer = parseInt(layerSelect.value);
     
-    if (selectedLayer) {
+    if (!isNaN(selectedLayer) && selectedLayer >= 0) {
         currentLayer = selectedLayer;
         document.getElementById('current-layer').textContent = currentLayer;
         await loadClipsForLayer(selectedLayer);
