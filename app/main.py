@@ -1,10 +1,11 @@
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 from typing import List
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
+import requests
 
 from app.config import load_tvs, save_tvs, CONFIG_PATH
 from app.models import TV, WakeRequest
@@ -396,9 +397,6 @@ async def broadcast_key_to_all(request: dict):
 async def get_thumbnail():
     """Get the current thumbnail from Resolume and return as image."""
     try:
-        import requests
-        from io import BytesIO
-        
         # Use the same config from thumbnail.py
         IP = "10.10.97.83"
         PORT = "8080"
@@ -420,19 +418,29 @@ async def get_thumbnail():
                 break
         
         if not active_clip_id:
-            raise HTTPException(status_code=404, detail="No active clip found")
+            # Return a 1x1 transparent pixel if no clip is active
+            # This prevents frontend errors while showing no content
+            transparent_pixel = b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\nIDATx\x9cc\x00\x01\x00\x00\x05\x00\x01\r\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82'
+            return Response(content=transparent_pixel, media_type="image/png")
         
         # Get the Thumbnail for that Clip ID
         thumb_url = f"{base_url}/composition/clips/by-id/{active_clip_id}/thumbnail"
         thumb_response = requests.get(thumb_url, timeout=5)
         thumb_response.raise_for_status()
         
-        from fastapi.responses import Response
         return Response(content=thumb_response.content, media_type="image/jpeg")
         
+    except requests.exceptions.Timeout:
+        raise HTTPException(status_code=504, detail="Resolume server timeout")
+    except requests.exceptions.ConnectionError:
+        raise HTTPException(status_code=503, detail="Cannot connect to Resolume server")
     except requests.exceptions.RequestException as e:
         raise HTTPException(status_code=503, detail=f"Failed to fetch thumbnail: {str(e)}")
+    except HTTPException:
+        raise
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
 
 
