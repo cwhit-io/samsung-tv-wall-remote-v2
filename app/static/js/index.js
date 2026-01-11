@@ -198,6 +198,23 @@ function closeRemoteModal(event) {
     currentRemoteTV = null;
 }
 
+function openGlobalRemote() {
+    const modal = document.getElementById('global-remote-modal');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+}
+
+function closeGlobalRemote(event) {
+    // If event is provided and target is not the backdrop, don't close
+    if (event && event.target.id !== 'global-remote-modal') {
+        return;
+    }
+    
+    const modal = document.getElementById('global-remote-modal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+}
+
 async function sendIndividualKey(key) {
     if (!currentRemoteTV) {
         console.error('No TV selected for remote control');
