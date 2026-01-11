@@ -30,6 +30,8 @@
                         class="px-3 py-2 rounded-md text-sm font-medium text-slate-300 hover:text-slate-100 hover:bg-slate-800 transition-colors">Status</a>
                     <a href="/debug.html"
                         class="px-3 py-2 rounded-md text-sm font-medium text-slate-300 hover:text-slate-100 hover:bg-slate-800 transition-colors">Debug</a>
+                    <a href="http://10.10.97.83:8080/" target="_blank"
+                        class="px-3 py-2 rounded-md text-sm font-medium text-slate-300 hover:text-slate-100 hover:bg-slate-800 transition-colors">Resolume</a>
                 </nav>
             </div>
         </div>
@@ -38,23 +40,23 @@
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <!-- Resolume Thumbnail -->
         <div class="mb-6">
-            <div class="bg-slate-900 rounded-lg p-4 border border-slate-800">
-                <div class="flex items-center justify-between mb-3">
-                    <h3 class="text-lg font-semibold text-slate-100">Current Output (Resolume Layer 1)</h3>
-                    <button onclick="refreshThumbnail()" 
-                        class="px-3 py-1 text-xs font-medium rounded-md text-white bg-slate-700 hover:bg-slate-600 transition-colors">
+            <div class="bg-slate-900 rounded-lg p-3 border border-slate-800">
+                <div class="flex items-center justify-between mb-2">
+                    <h3 class="text-sm font-semibold text-slate-100">Resolume Output</h3>
+                    <button onclick="refreshThumbnail(true)" 
+                        class="px-2 py-1 text-xs font-medium rounded text-white bg-slate-700 hover:bg-slate-600 transition-colors">
                         Refresh
                     </button>
                 </div>
-                <div id="thumbnail-container" class="relative bg-slate-950 rounded overflow-hidden" style="aspect-ratio: 16/9;">
+                <div id="thumbnail-container" class="relative bg-slate-950 rounded overflow-hidden max-w-md" style="aspect-ratio: 16/9;">
                     <img id="thumbnail-image" 
                         class="w-full h-full object-contain" 
                         alt="Resolume Thumbnail">
                     <div id="thumbnail-loading" class="absolute inset-0 flex items-center justify-center">
-                        <div class="text-slate-500">Loading thumbnail...</div>
+                        <div class="text-slate-500 text-xs">Loading...</div>
                     </div>
                     <div id="thumbnail-error" class="absolute inset-0 flex items-center justify-center hidden">
-                        <div class="text-red-400">Failed to load thumbnail</div>
+                        <div class="text-red-400 text-xs">Failed to load</div>
                     </div>
                 </div>
             </div>

@@ -4,61 +4,77 @@ import json
 # CONFIGURATION
 IP = "10.10.97.83"
 PORT = "8080"
-LAYER_INDEX = 1  # Which layer are you monitoring? (1 for Layer 1)
+LAYER_INDEX = 1  # Which layer are you monitoring?
+BASE_URL = f"http://{IP}:{PORT}/api/v1"
+OUTPUT_FILENAME = f"live_output_layer_{LAYER_INDEX}.jpg"
+
+def download_image(url, description):
+    """Helper to download and save an image."""
+    try:
+        print(f"Attempting to download {description}...")
+        response = requests.get(url, timeout=2)
+        if response.status_code == 200:
+            with open(OUTPUT_FILENAME, "wb") as f:
+                f.write(response.content)
+            print(f"✅ Success! Saved {description} to {OUTPUT_FILENAME}")
+            return True
+        else:
+            print(f"❌ Failed to download {description}. Status: {response.status_code}")
+            return False
+    except Exception as e:
+        print(f"❌ Error downloading {description}: {e}")
+        return False
+
+def get_dummy_thumbnail():
+    """Fallback: Gets the default dummy thumbnail."""
+    print("⚠️ Triggering fallback to Dummy Thumbnail...")
+    url = f"{BASE_URL}/composition/thumbnail/dummy"
+    download_image(url, "Dummy Thumbnail")
 
 def get_active_clip_thumbnail():
-    base_url = f"http://{IP}:{PORT}/api/v1"
-    
-    # STEP 1: Get Layer Info to find the Active Clip
+    # STEP 1: Get Layer Info
     print(f"Checking Layer {LAYER_INDEX}...")
     try:
-        layer_response = requests.get(f"{base_url}/composition/layers/{LAYER_INDEX}")
-        layer_response.raise_for_status()
+        layer_url = f"{BASE_URL}/composition/layers/{LAYER_INDEX}"
+        layer_response = requests.get(layer_url, timeout=2)
+        
+        if layer_response.status_code != 200:
+            print(f"Layer endpoint returned {layer_response.status_code}")
+            get_dummy_thumbnail()
+            return
+
         layer_data = layer_response.json()
     except Exception as e:
-        print(f"Failed to get layer: {e}")
+        print(f"Failed to connect to Resolume: {e}")
+        get_dummy_thumbnail()
         return
 
     # STEP 2: Find the Connected Clip ID
     active_clip_id = None
     
-    # Iterate through clips in the layer to find the one that is "Connected"
-    # Note: The API structure for clips usually contains a "connected" state
     for clip in layer_data.get('clips', []):
-        # Different versions handle "connected" differently. 
-        # We check for the specific enum or boolean usually found in 'connected'
-        # In the raw JSON, look for "connected": "Connected" or similar.
-        
-        # A safer fallback is checking if the clip has a transport that is running
-        # But let's assume standard API structure:
+        # Check for "Connected" state (String 'Connected' or Enum 2)
         connected_state = clip.get('connected', {}).get('value')
         
-        # '2' usually means Connected/Playing in Resolume's internal logic, 
-        # or sometimes it returns the string "Connected"
         if connected_state == "Connected" or connected_state == 2:
             active_clip_id = clip.get('id')
             name = clip.get('name', {}).get('value', 'Unknown')
             print(f"Found Active Clip: {name} (ID: {active_clip_id})")
             break
     
+    # FALLBACK: If no clip is playing
     if not active_clip_id:
         print("No clip is currently playing on this layer.")
+        get_dummy_thumbnail()
         return
 
     # STEP 3: Get the Thumbnail for that Clip ID
-    print(f"Downloading thumbnail for Clip {active_clip_id}...")
-    thumb_url = f"{base_url}/composition/clips/by-id/{active_clip_id}/thumbnail"
+    thumb_url = f"{BASE_URL}/composition/clips/by-id/{active_clip_id}/thumbnail"
     
-    try:
-        thumb_response = requests.get(thumb_url)
-        if thumb_response.status_code == 200:
-            with open(f"live_output_layer_{LAYER_INDEX}.jpg", "wb") as f:
-                f.write(thumb_response.content)
-            print("Success! Saved as live_output_layer_1.jpg")
-        else:
-            print(f"Error fetching thumbnail: {thumb_response.status_code}")
-    except Exception as e:
-        print(f"Failed to download thumbnail: {e}")
+    # Try to download specific clip; if fail, download dummy
+    success = download_image(thumb_url, f"Clip {active_clip_id}")
+    if not success:
+        get_dummy_thumbnail()
 
 if __name__ == "__main__":
     get_active_clip_thumbnail()

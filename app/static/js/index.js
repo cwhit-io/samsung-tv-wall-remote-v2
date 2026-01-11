@@ -1,7 +1,16 @@
 let tvData = [];
 let thumbnailRefreshInterval = null;
+let lastThumbnailFetch = 0;
+const THUMBNAIL_CACHE_MS = 60000; // 60 seconds
 
-async function refreshThumbnail() {
+async function refreshThumbnail(force = false) {
+    const now = Date.now();
+    
+    // Check if we should skip due to cache (unless force refresh)
+    if (!force && (now - lastThumbnailFetch) < THUMBNAIL_CACHE_MS) {
+        return;
+    }
+    
     const img = document.getElementById('thumbnail-image');
     const loading = document.getElementById('thumbnail-loading');
     const error = document.getElementById('thumbnail-error');
@@ -11,7 +20,7 @@ async function refreshThumbnail() {
     img.style.opacity = '0.5';
     
     try {
-        // Add timestamp to prevent caching
+        // Add timestamp to prevent browser caching
         const timestamp = new Date().getTime();
         const response = await fetch(`/api/thumbnail?t=${timestamp}`);
         
@@ -30,6 +39,9 @@ async function refreshThumbnail() {
         img.src = objectUrl;
         img.style.opacity = '1';
         loading.classList.add('hidden');
+        
+        // Update last fetch time
+        lastThumbnailFetch = now;
         
     } catch (err) {
         console.error('Error loading thumbnail:', err);
@@ -236,6 +248,6 @@ async function toggleAllPower() {
 
 // Initial load and auto-refresh
 fetchTVs();
-refreshThumbnail();
+refreshThumbnail(true); // Force initial load
 setInterval(fetchTVs, 10000); // Refresh every 10 seconds
-thumbnailRefreshInterval = setInterval(refreshThumbnail, 2000); // Refresh thumbnail every 2 seconds
+thumbnailRefreshInterval = setInterval(() => refreshThumbnail(false), 2000); // Check every 2 seconds but cache for 60s
