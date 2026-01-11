@@ -1,4 +1,44 @@
 let tvData = [];
+let thumbnailRefreshInterval = null;
+
+async function refreshThumbnail() {
+    const img = document.getElementById('thumbnail-image');
+    const loading = document.getElementById('thumbnail-loading');
+    const error = document.getElementById('thumbnail-error');
+    
+    loading.classList.remove('hidden');
+    error.classList.add('hidden');
+    img.style.opacity = '0.5';
+    
+    try {
+        // Add timestamp to prevent caching
+        const timestamp = new Date().getTime();
+        const response = await fetch(`/api/thumbnail?t=${timestamp}`);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        
+        const blob = await response.blob();
+        const objectUrl = URL.createObjectURL(blob);
+        
+        // Revoke old object URL if it exists
+        if (img.src && img.src.startsWith('blob:')) {
+            URL.revokeObjectURL(img.src);
+        }
+        
+        img.src = objectUrl;
+        img.style.opacity = '1';
+        loading.classList.add('hidden');
+        
+    } catch (err) {
+        console.error('Error loading thumbnail:', err);
+        error.classList.remove('hidden');
+        img.style.opacity = '1';
+    } finally {
+        loading.classList.add('hidden');
+    }
+}
 
 async function fetchTVs() {
     try {
@@ -196,4 +236,6 @@ async function toggleAllPower() {
 
 // Initial load and auto-refresh
 fetchTVs();
+refreshThumbnail();
 setInterval(fetchTVs, 10000); // Refresh every 10 seconds
+thumbnailRefreshInterval = setInterval(refreshThumbnail, 2000); // Refresh thumbnail every 2 seconds

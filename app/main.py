@@ -10,6 +10,7 @@ from app.config import load_tvs, save_tvs, CONFIG_PATH
 from app.models import TV, WakeRequest
 import app.wol as wol
 import app.utils as utils
+import app.thumbnail as thumbnail
 
 app = FastAPI(title="TV WOL Service")
 
@@ -389,6 +390,50 @@ async def broadcast_key_to_all(request: dict):
         response["wol_sent"] = results["wol_sent"]
     
     return response
+
+
+@router.get("/thumbnail")
+async def get_thumbnail():
+    """Get the current thumbnail from Resolume and return as image."""
+    try:
+        import requests
+        from io import BytesIO
+        
+        # Use the same config from thumbnail.py
+        IP = "10.10.97.83"
+        PORT = "8080"
+        LAYER_INDEX = 1
+        
+        base_url = f"http://{IP}:{PORT}/api/v1"
+        
+        # Get Layer Info to find the Active Clip
+        layer_response = requests.get(f"{base_url}/composition/layers/{LAYER_INDEX}", timeout=5)
+        layer_response.raise_for_status()
+        layer_data = layer_response.json()
+        
+        # Find the Connected Clip ID
+        active_clip_id = None
+        for clip in layer_data.get('clips', []):
+            connected_state = clip.get('connected', {}).get('value')
+            if connected_state == "Connected" or connected_state == 2:
+                active_clip_id = clip.get('id')
+                break
+        
+        if not active_clip_id:
+            raise HTTPException(status_code=404, detail="No active clip found")
+        
+        # Get the Thumbnail for that Clip ID
+        thumb_url = f"{base_url}/composition/clips/by-id/{active_clip_id}/thumbnail"
+        thumb_response = requests.get(thumb_url, timeout=5)
+        thumb_response.raise_for_status()
+        
+        from fastapi.responses import Response
+        return Response(content=thumb_response.content, media_type="image/jpeg")
+        
+    except requests.exceptions.RequestException as e:
+        raise HTTPException(status_code=503, detail=f"Failed to fetch thumbnail: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
 
 
 # Include API router under /api
