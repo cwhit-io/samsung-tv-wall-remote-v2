@@ -22,6 +22,11 @@ from fastapi import APIRouter
 
 router = APIRouter(prefix="/api")
 
+# Resolume configuration
+RESOLUME_IP = "10.10.97.83"
+RESOLUME_PORT = "8080"
+RESOLUME_BASE_URL = f"http://{RESOLUME_IP}:{RESOLUME_PORT}/api/v1"
+
 
 def _get_tvs_dict():
     return load_tvs()
@@ -437,14 +442,8 @@ async def get_thumbnail(layer: int = 1):
         layer: Layer index to get thumbnail from (default: 1)
     """
     try:
-        # Use the same config from thumbnail.py
-        IP = "10.10.97.83"
-        PORT = "8080"
-        
-        base_url = f"http://{IP}:{PORT}/api/v1"
-        
         # Get Layer Info to find the Active Clip
-        layer_response = requests.get(f"{base_url}/composition/layers/{layer}", timeout=5)
+        layer_response = requests.get(f"{RESOLUME_BASE_URL}/composition/layers/{layer}", timeout=5)
         layer_response.raise_for_status()
         layer_data = layer_response.json()
         
@@ -463,7 +462,7 @@ async def get_thumbnail(layer: int = 1):
             return Response(content=transparent_pixel, media_type="image/png")
         
         # Get the Thumbnail for that Clip ID
-        thumb_url = f"{base_url}/composition/clips/by-id/{active_clip_id}/thumbnail"
+        thumb_url = f"{RESOLUME_BASE_URL}/composition/clips/by-id/{active_clip_id}/thumbnail"
         thumb_response = requests.get(thumb_url, timeout=5)
         thumb_response.raise_for_status()
         
@@ -487,11 +486,7 @@ async def get_thumbnail(layer: int = 1):
 def get_resolume_layers():
     """Get list of all layers from Resolume."""
     try:
-        IP = "10.10.97.83"
-        PORT = "8080"
-        base_url = f"http://{IP}:{PORT}/api/v1"
-        
-        response = requests.get(f"{base_url}/composition/layers", timeout=5)
+        response = requests.get(f"{RESOLUME_BASE_URL}/composition/layers", timeout=5)
         response.raise_for_status()
         
         layers_data = response.json()
@@ -519,13 +514,9 @@ def get_resolume_layers():
 def connect_resolume_layer(layer_index: int):
     """Connect (activate) a specific layer in Resolume."""
     try:
-        IP = "10.10.97.83"
-        PORT = "8080"
-        base_url = f"http://{IP}:{PORT}/api/v1"
-        
         # Set the layer's connect value to true
         response = requests.post(
-            f"{base_url}/composition/layers/{layer_index}/connect",
+            f"{RESOLUME_BASE_URL}/composition/layers/{layer_index}/connect",
             json={"value": True},
             timeout=5
         )
@@ -545,11 +536,7 @@ def connect_resolume_layer(layer_index: int):
 def get_resolume_layer_clips(layer_index: int):
     """Get all clips for a specific layer."""
     try:
-        IP = "10.10.97.83"
-        PORT = "8080"
-        base_url = f"http://{IP}:{PORT}/api/v1"
-        
-        response = requests.get(f"{base_url}/composition/layers/{layer_index}", timeout=5)
+        response = requests.get(f"{RESOLUME_BASE_URL}/composition/layers/{layer_index}", timeout=5)
         response.raise_for_status()
         layer_data = response.json()
         
@@ -576,13 +563,9 @@ def get_resolume_layer_clips(layer_index: int):
 def connect_resolume_clip(clip_id: int):
     """Connect (trigger) a specific clip in Resolume."""
     try:
-        IP = "10.10.97.83"
-        PORT = "8080"
-        base_url = f"http://{IP}:{PORT}/api/v1"
-        
         # Trigger the clip by setting its connect value
         response = requests.post(
-            f"{base_url}/composition/clips/by-id/{clip_id}/connect",
+            f"{RESOLUME_BASE_URL}/composition/clips/by-id/{clip_id}/connect",
             json={"value": True},
             timeout=5
         )
