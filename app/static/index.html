@@ -38,8 +38,37 @@
     </header>
 
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div class="mb-6 flex items-center justify-between">
+            <h2 class="text-2xl font-bold text-slate-100">TV Grid</h2>
+            <div class="flex items-center gap-3">
+                <button onclick="openGlobalRemote()" 
+                    class="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-colors flex items-center gap-2">
+                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                    Global Remote
+                </button>
+                <button onclick="refreshNow()" id="btnRefresh"
+                    class="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    Refresh
+                </button>
+            </div>
+        </div>
+
+        <div id="tv-grid" class="grid grid-cols-5 gap-4">
+            <!-- TV cards will be populated here by JavaScript -->
+        </div>
+
+        <div id="loading" class="text-center py-16">
+            <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+            <p class="mt-4 text-sm text-slate-400">Loading TVs...</p>
+        </div>
+
         <!-- Resolume Section -->
-        <div class="mb-6">
+        <div class="mt-8">
             <div class="bg-slate-900 rounded-lg p-4 border border-slate-800">
                 <div class="flex items-center justify-between mb-3">
                     <h3 class="text-lg font-semibold text-slate-100">Resolume Control</h3>
@@ -77,35 +106,6 @@
                     </div>
                 </div>
             </div>
-        </div>
-
-        <div class="mb-6 flex items-center justify-between">
-            <h2 class="text-2xl font-bold text-slate-100">TV Grid</h2>
-            <div class="flex items-center gap-3">
-                <button onclick="openGlobalRemote()" 
-                    class="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-colors flex items-center gap-2">
-                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                    </svg>
-                    Global Remote
-                </button>
-                <button onclick="refreshNow()" id="btnRefresh"
-                    class="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
-                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                    </svg>
-                    Refresh
-                </button>
-            </div>
-        </div>
-
-        <div id="tv-grid" class="grid grid-cols-5 gap-4">
-            <!-- TV cards will be populated here by JavaScript -->
-        </div>
-
-        <div id="loading" class="text-center py-16">
-            <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-            <p class="mt-4 text-sm text-slate-400">Loading TVs...</p>
         </div>
     </main>
 
