@@ -4,7 +4,7 @@ from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 from typing import List
 
-from app.config import load_tvs, CONFIG_PATH
+from app.config import load_tvs, save_tvs, CONFIG_PATH
 from app.models import TV, WakeRequest
 import app.wol as wol
 import app.utils as utils
@@ -174,9 +174,81 @@ def request_new_token_endpoint(ip: str):
 
     try:
         token = utils.request_new_token(ip, port, app_name)
-        return {"token": token, "message": "New token obtained successfully"}
+        
+        # Save the new token to the config file
+        tvs[ip]["token"] = token
+        save_tvs(tvs)
+        
+        return {"token": token, "message": "New token obtained and saved successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Token request failed: {e}")
+
+
+@router.post("/tvs/refresh-all-tokens")
+def refresh_all_tokens():
+    """Request new tokens from all TVs that are online and accessible.
+
+    This will attempt to pair with all TVs in the configuration.
+    Each TV will display a pairing prompt that must be accepted.
+    Returns a summary of successful and failed token refreshes.
+    """
+    tvs = _get_tvs_dict()
+    app_name = "TVControlPanel"
+    
+    results = {
+        "success": [],
+        "failed": [],
+        "skipped": []
+    }
+    
+    for ip, tv_data in tvs.items():
+        port = tv_data.get("ws_port", 8002)
+        tv_name = tv_data.get("name", ip)
+        
+        # Check if TV is online
+        if not utils.cached_ping_host(ip):
+            results["skipped"].append({
+                "ip": ip,
+                "name": tv_name,
+                "reason": "TV not responding to ping"
+            })
+            continue
+        
+        if not utils.cached_check_tcp_port(ip, port):
+            results["skipped"].append({
+                "ip": ip,
+                "name": tv_name,
+                "reason": f"Port {port} not accessible"
+            })
+            continue
+        
+        # Try to get new token
+        try:
+            token = utils.request_new_token(ip, port, app_name)
+            tvs[ip]["token"] = token
+            results["success"].append({
+                "ip": ip,
+                "name": tv_name,
+                "token": token
+            })
+        except Exception as e:
+            results["failed"].append({
+                "ip": ip,
+                "name": tv_name,
+                "error": str(e)
+            })
+    
+    # Save all successful tokens
+    if results["success"]:
+        save_tvs(tvs)
+    
+    return {
+        "total": len(tvs),
+        "success_count": len(results["success"]),
+        "failed_count": len(results["failed"]),
+        "skipped_count": len(results["skipped"]),
+        "results": results
+    }
 
 
 # Include API router under /api

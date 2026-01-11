@@ -5,105 +5,105 @@
             "model": "QN75QN90DAFXZA",
             "last_updated": "2025-08-04 14:04:42",
             "mac": "28:AF:42:4D:39:8E",
-            "token": "10132873"
+            "token": "47775061"
         },
         "10.10.97.132": {
             "name": "M2 TV",
             "model": "QN75QN90DAFXZA",
             "last_updated": "2025-08-04 14:37:49",
             "mac": "28:AF:42:30:92:78",
-            "token": "92106970"
+            "token": "35068237"
         },
         "10.10.97.122": {
             "name": "B3 TV",
             "model": "QN75QN90DAFXZA",
             "last_updated": "2025-08-04 14:03:26",
             "mac": "04:E4:B6:C7:7A:46",
-            "token": ""
+            "token": "13601938"
         },
         "10.10.97.128": {
             "name": "M4 TV",
             "model": "QN75QN90DAFXZA",
             "last_updated": "2025-08-04 14:04:09",
             "mac": "28:AF:42:4D:3B:50",
-            "token": "16656828"
+            "token": "12511155"
         },
         "10.10.97.138": {
             "name": "T1 TV",
             "model": "QN75QN90DAFXZA",
             "last_updated": "2025-08-04 14:37:10",
             "mac": "28:AF:42:30:A3:0A",
-            "token": "69276281"
+            "token": "72263244"
         },
         "10.10.97.126": {
             "name": "T4 TV",
             "model": "QN75QN90DAFXZA",
             "last_updated": "2025-08-04 14:32:03",
             "mac": "28:AF:42:30:A9:86",
-            "token": "44254359"
+            "token": "13621243"
         },
         "10.10.97.120": {
             "name": "M3 TV",
             "model": "QN75QN90DAFXZA",
             "last_updated": "2025-08-04 14:10:01",
             "mac": "04:E4:B6:C7:7C:80",
-            "token": "16003138"
+            "token": "15254677"
         },
         "10.10.97.86": {
             "name": "T3 TV",
             "model": "QN75QN90DAFXZA",
             "last_updated": "2025-08-04 14:32:02",
             "mac": "04:E4:B6:C7:2A:02",
-            "token": "15707877"
+            "token": "15613962"
         },
         "10.10.97.137": {
             "name": "M1 TV",
             "model": "QN75QN90DAFXZA",
             "last_updated": "2025-08-04 14:37:48",
             "mac": "28:AF:42:30:9E:FA",
-            "token": "17123478"
+            "token": "15968843"
         },
         "10.10.97.78": {
             "name": "T2 TV",
             "model": "QN75QN90DAFXZA",
             "last_updated": "2025-08-04 14:37:11",
             "mac": "28:AF:42:30:B0:D0",
-            "token": "71197190"
+            "token": "13895898"
         },
         "10.10.97.133": {
             "name": "B1 TV",
             "model": "QN75QN90DAFXZA",
             "last_updated": "2025-08-04 14:03:25",
             "mac": "04:E4:B6:C7:7E:64",
-            "token": "21343787"
+            "token": "41893486"
         },
         "10.10.97.125": {
             "name": "T5 TV",
             "model": "QN75QN90DAFXZA",
             "last_updated": "2025-08-04 14:32:03",
             "mac": "28:AF:42:30:A0:A4",
-            "token": "73194555"
+            "token": "15573520"
         },
         "10.10.97.121": {
             "name": "B2 TV",
             "model": "QN75QN90DAFXZA",
             "last_updated": "2025-08-04 14:03:25",
             "mac": "04:E4:B6:C7:B9:D0",
-            "token": "17801528"
+            "token": "69499945"
         },
         "10.10.97.130": {
             "name": "M5 TV",
             "model": "QN75QN90DAFXZA",
             "last_updated": "2025-08-04 14:03:24",
             "mac": "28:AF:42:4D:3F:20",
-            "token": "93183847"
+            "token": "14671335"
         },
         "10.10.97.159": {
             "name": "B5 TV",
             "model": "QN75QN90DAFXZA",
             "last_updated": "2025-08-18 10:39:38",
             "mac": "28:AF:42:4D:B0:50",
-            "token": "16757132"
+            "token": "99831005"
         }
     }
 }

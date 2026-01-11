@@ -5,7 +5,7 @@ Simple FastAPI service to send Wake-on-LAN (WOL) magic packets to TVs listed in 
 Quick start
 
 - Install deps: `pip install -r requirements.txt`
-- Run server: `python3 ./app/main.py` or `python -m uvicorn app.main:app --reload --port 8000`
+- Run server: `python3 ./app/main.py` or `python3 -m uvicorn app.main:app --reload --port 8001 --host 0.0.0.0`
 - Endpoints:
   - GET `/tvs` — list TVs
   - GET `/tvs/{ip}` — get TV by IP

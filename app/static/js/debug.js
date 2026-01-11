@@ -391,15 +391,15 @@ async function requestNewToken() {
             const newToken = data.token;
 
             log('success', `✓ New token obtained: ${newToken}`);
-            log('info', `💾 Update your config/tvs.json with this token for ${currentTV.ip}`);
+            log('success', `💾 Token automatically saved to config/tvs.json`);
 
             // Show result in UI
             resultDiv.classList.remove('hidden');
             outputDiv.innerHTML = `
-                <div class="text-green-400 font-bold mb-2">SUCCESS! New token obtained:</div>
+                <div class="text-green-400 font-bold mb-2">SUCCESS! New token obtained and saved:</div>
                 <div class="bg-slate-900 p-3 rounded border font-mono text-lg">${newToken}</div>
                 <div class="text-sm text-slate-400 mt-2">
-                    Copy this token to your <code>config/tvs.json</code> file for the TV at ${currentTV.ip}
+                    Token has been automatically saved to <code>config/tvs.json</code> for ${currentTV.ip}
                 </div>
             `;
 
@@ -433,6 +433,106 @@ async function requestNewToken() {
     } finally {
         btn.disabled = false;
         btn.textContent = 'Request New Token';
+    }
+}
+
+// Refresh all tokens for all TVs
+async function refreshAllTokens() {
+    const btn = document.getElementById('btnRefreshAll');
+    const resultDiv = document.getElementById('tokenResult');
+    const outputDiv = document.getElementById('tokenOutput');
+
+    btn.disabled = true;
+    btn.textContent = 'Refreshing All...';
+    resultDiv.classList.add('hidden');
+    outputDiv.textContent = '';
+
+    log('info', 'Starting token refresh for all TVs...');
+    log('warning', '⚠️ CHECK ALL TV SCREENS! Each TV will show a pairing prompt that must be accepted');
+
+    try {
+        const r = await fetch('/api/tvs/refresh-all-tokens', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+        if (r.ok) {
+            const data = await r.json();
+            
+            log('info', `Total TVs: ${data.total}`);
+            log('success', `✓ Success: ${data.success_count}`);
+            log('error', `✗ Failed: ${data.failed_count}`);
+            log('warning', `⊘ Skipped: ${data.skipped_count}`);
+
+            // Log details
+            data.results.success.forEach(tv => {
+                log('success', `✓ ${tv.name} (${tv.ip}): ${tv.token}`);
+            });
+
+            data.results.failed.forEach(tv => {
+                log('error', `✗ ${tv.name} (${tv.ip}): ${tv.error}`);
+            });
+
+            data.results.skipped.forEach(tv => {
+                log('warning', `⊘ ${tv.name} (${tv.ip}): ${tv.reason}`);
+            });
+
+            // Show summary in result box
+            resultDiv.classList.remove('hidden');
+            let summaryHtml = `
+                <div class="text-slate-300 font-bold mb-3">Refresh Complete</div>
+                <div class="space-y-2">
+                    <div class="text-green-400">✓ Success: ${data.success_count}</div>
+                    <div class="text-red-400">✗ Failed: ${data.failed_count}</div>
+                    <div class="text-yellow-400">⊘ Skipped: ${data.skipped_count}</div>
+                </div>
+            `;
+
+            if (data.success_count > 0) {
+                summaryHtml += `
+                    <div class="mt-4 pt-4 border-t border-slate-700">
+                        <div class="text-sm text-slate-400 mb-2">New tokens saved:</div>
+                        ${data.results.success.map(tv => `
+                            <div class="text-xs font-mono text-green-400">${tv.name}: ${tv.token}</div>
+                        `).join('')}
+                        <div class="text-sm text-slate-400 mt-2">
+                            All tokens automatically saved to <code>config/tvs.json</code>
+                        </div>
+                    </div>
+                `;
+            }
+
+            outputDiv.innerHTML = summaryHtml;
+
+            // Reload TV data to get updated tokens
+            await loadTVs();
+            if (currentTV) {
+                selectTV(currentTV.ip);
+            }
+
+        } else {
+            const errorText = await r.text();
+            log('error', `✗ Bulk refresh failed (HTTP ${r.status})`);
+            log('error', `Error: ${errorText}`);
+
+            resultDiv.classList.remove('hidden');
+            outputDiv.innerHTML = `
+                <div class="text-red-400 font-bold mb-2">FAILED:</div>
+                <div class="text-red-300">${errorText}</div>
+            `;
+        }
+    } catch (e) {
+        log('error', `Bulk refresh error: ${e.message}`);
+        log('error', `Stack: ${e.stack}`);
+
+        resultDiv.classList.remove('hidden');
+        outputDiv.innerHTML = `
+            <div class="text-red-400 font-bold mb-2">ERROR:</div>
+            <div class="text-red-300">${e.message}</div>
+        `;
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Refresh All Tokens';
     }
 }
 

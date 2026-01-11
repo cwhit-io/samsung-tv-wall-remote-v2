@@ -25,10 +25,6 @@ async function fetchStatus() {
             ? '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-900/30 text-green-400 border border-green-800">Open</span>'
             : '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-800 text-slate-400 border border-slate-700">Closed</span>'
 
-        const token = tv.token_verified
-            ? '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-900/30 text-blue-400 border border-blue-800">Verified</span>'
-            : '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-900/30 text-yellow-400 border border-yellow-800">Unverified</span>'
-
         let powerState = '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-800 text-slate-400 border border-slate-700">Unknown</span>'
         if (tv.power_state) {
             const state = tv.power_state.toLowerCase()
@@ -36,6 +32,8 @@ async function fetchStatus() {
                 powerState = '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-900/30 text-green-400 border border-green-800">On</span>'
             } else if (state === 'standby') {
                 powerState = '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-900/30 text-orange-400 border border-orange-800">Standby</span>'
+            } else if (state === 'off') {
+                powerState = '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-900/30 text-red-400 border border-red-800">Off</span>'
             } else {
                 powerState = `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-800 text-slate-400 border border-slate-700">${tv.power_state}</span>`
             }
@@ -47,13 +45,38 @@ async function fetchStatus() {
             <td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-slate-400">${tv.mac}</td>
             <td class="px-6 py-4 whitespace-nowrap text-center text-sm">${statusOnline}</td>
             <td class="px-6 py-4 whitespace-nowrap text-center text-sm">${ws}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-center text-sm">${token}</td>
             <td class="px-6 py-4 whitespace-nowrap text-center text-sm">${powerState}</td>
         `
         tbody.appendChild(tr)
     }
 
     if (loading) loading.style.display = 'none'
+}
+
+// Manual refresh function
+async function refreshNow() {
+    const btn = document.getElementById('btnRefresh')
+    if (btn) {
+        btn.disabled = true
+        btn.innerHTML = `
+            <svg class="h-4 w-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            Refreshing...
+        `
+    }
+    
+    await fetchStatus()
+    
+    if (btn) {
+        btn.disabled = false
+        btn.innerHTML = `
+            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            Refresh
+        `
+    }
 }
 
 fetchStatus()

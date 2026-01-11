@@ -172,10 +172,16 @@
                         <li>The new token will be displayed here</li>
                     </ol>
                 </div>
-                <button onclick="requestNewToken()" id="btnRequestToken"
-                    class="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-                    Request New Token
-                </button>
+                <div class="flex gap-3">
+                    <button onclick="requestNewToken()" id="btnRequestToken"
+                        class="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                        Request New Token
+                    </button>
+                    <button onclick="refreshAllTokens()" id="btnRefreshAll"
+                        class="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                        Refresh All Tokens
+                    </button>
+                </div>
                 <div id="tokenResult" class="mt-4 p-4 bg-slate-800 rounded-lg hidden">
                     <h4 class="text-sm font-medium text-slate-300 mb-2">Result:</h4>
                     <div id="tokenOutput" class="text-sm font-mono text-green-400"></div>

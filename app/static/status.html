@@ -48,11 +48,20 @@
   </header>
 
   <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-    <div class="mb-6">
-      <h2 class="text-2xl font-bold text-slate-100">TV Status Dashboard</h2>
-      <p class="mt-1 text-sm text-slate-400">
-        Auto-refresh every 10 seconds. Click a row to open the debug page for that TV.
-      </p>
+    <div class="mb-6 flex items-center justify-between">
+      <div>
+        <h2 class="text-2xl font-bold text-slate-100">TV Status Dashboard</h2>
+        <p class="mt-1 text-sm text-slate-400">
+          Auto-refresh every 10 seconds. Click a row to open the debug page for that TV.
+        </p>
+      </div>
+      <button onclick="refreshNow()" id="btnRefresh"
+        class="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+        </svg>
+        Refresh
+      </button>
     </div>
 
     <div class="bg-slate-900 rounded-lg shadow-xl border border-slate-800 overflow-hidden">
@@ -71,9 +80,7 @@
               <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-slate-400 uppercase tracking-wider">
                 WebSocket</th>
               <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-slate-400 uppercase tracking-wider">
-                Token</th>
-              <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-slate-400 uppercase tracking-wider">
-                Power</th>
+                Power State</th>
             </tr>
           </thead>
           <tbody class="bg-slate-900 divide-y divide-slate-800">
