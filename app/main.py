@@ -383,22 +383,16 @@ async def broadcast_key_to_all(request: dict):
         port = tv_data.get("ws_port", 8002)
         token = tv_data.get("token")
         
-        # Check if TV is online (force refresh to get latest status)
-        if not utils.cached_ping_host(ip, force=True):
+        # Check if TV is online (ping OR websocket)
+        ping_online = utils.cached_ping_host(ip, force=True)
+        ws_online = utils.cached_check_tcp_port(ip, port, force=True)
+        
+        if not (ping_online or ws_online):
             return {
                 "status": "skipped",
                 "ip": ip,
                 "name": tv_name,
                 "reason": "TV offline"
-            }
-        
-        # Skip if websocket port is not accessible
-        if not utils.cached_check_tcp_port(ip, port, force=True):
-            return {
-                "status": "skipped",
-                "ip": ip,
-                "name": tv_name,
-                "reason": f"WebSocket port {port} not accessible"
             }
         
         # Try to send the key

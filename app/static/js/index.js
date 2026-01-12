@@ -155,8 +155,47 @@ async function triggerSelectedClip() {
     }
 }
 
+let isGlobalCommandInProgress = false;
+
+function showToast(message, type = 'info') {
+    const toast = document.createElement('div');
+    toast.className = `fixed top-20 right-4 px-6 py-3 rounded-lg shadow-lg text-white z-50 transition-opacity duration-300 ${
+        type === 'success' ? 'bg-green-600' : 
+        type === 'error' ? 'bg-red-600' : 
+        'bg-blue-600'
+    }`;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+
+function setGlobalRemoteLoading(loading) {
+    isGlobalCommandInProgress = loading;
+    const buttons = document.querySelectorAll('#global-remote-modal button[onclick^="sendGlobalKey"]');
+    buttons.forEach(btn => {
+        if (loading) {
+            btn.disabled = true;
+            btn.style.opacity = '0.5';
+            btn.style.cursor = 'wait';
+        } else {
+            btn.disabled = false;
+            btn.style.opacity = '1';
+            btn.style.cursor = 'pointer';
+        }
+    });
+}
+
 async function sendGlobalKey(key) {
+    if (isGlobalCommandInProgress) return;
+    
     try {
+        setGlobalRemoteLoading(true);
+        showToast('Sending command to all TVs...', 'info');
+        
         const res = await fetch('/api/tvs/broadcast-key', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -166,15 +205,17 @@ async function sendGlobalKey(key) {
         if (res.ok) {
             const data = await res.json();
             console.log(`Global key ${key} sent:`, data);
-            // Optional: Show a brief toast notification
+            showToast(`✓ Command sent to ${data.success_count}/${data.total} TVs`, 'success');
         } else {
             const error = await res.text();
             console.error(`Failed to send global key ${key}:`, error);
-            alert(`Failed to send command to all TVs`);
+            showToast(`Failed to send command to all TVs`, 'error');
         }
     } catch (error) {
         console.error(`Error sending global key ${key}:`, error);
-        alert(`Error sending command to all TVs`);
+        showToast(`Error sending command to all TVs`, 'error');
+    } finally {
+        setGlobalRemoteLoading(false);
     }
 }
 
