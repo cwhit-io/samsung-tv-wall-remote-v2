@@ -1,11 +1,15 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
 from pathlib import Path
 from typing import List
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 import requests
+import socket
+import select
+import time
 
 from app.config import load_tvs, save_tvs, CONFIG_PATH
 from app.models import TV, WakeRequest
@@ -14,6 +18,15 @@ import app.utils as utils
 import app.thumbnail as thumbnail
 
 app = FastAPI(title="TV WOL Service")
+
+# CORS - allow local dev React server origins
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:8002", "http://127.0.0.1:8002"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Static files served from root
 static_dir = Path(__file__).resolve().parents[0] / "static"
@@ -725,6 +738,116 @@ def connect_resolume_clip(clip_id: int):
         raise HTTPException(status_code=503, detail="Cannot connect to Resolume server")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to connect clip: {str(e)}")
+
+
+# Debug helper endpoints: ping, port check, SSDP discovery, and wake-and-wait
+@router.get("/debug/ping")
+def debug_ping(ip: str, force: bool = False):
+    """Return whether the host responds to ping (uses cached_ping_host)."""
+    if not ip:
+        raise HTTPException(status_code=400, detail="Missing ip parameter")
+    try:
+        ok = utils.cached_ping_host(ip, force=force)
+        return {"ok": bool(ok)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/debug/port")
+def debug_port(ip: str, port: int = 8002, force: bool = False):
+    """Check whether a TCP port is open on the host (uses cached_check_tcp_port)."""
+    if not ip:
+        raise HTTPException(status_code=400, detail="Missing ip parameter")
+    try:
+        ok = utils.cached_check_tcp_port(ip, port, force=force)
+        return {"ok": bool(ok), "port": port}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/debug/ssdp")
+def debug_ssdp(ip: str | None = None, timeout: float = 2.0):
+    """Perform an SSDP M-SEARCH and return received responses (basic implementation).
+
+    If `ip` is provided, filter responses to those originating from that IP.
+    """
+    MCAST_GRP = ("239.255.255.250", 1900)
+    msg = (
+        "M-SEARCH * HTTP/1.1\r\n"
+        f"HOST: {MCAST_GRP[0]}:{MCAST_GRP[1]}\r\n"
+        "MAN: \"ssdp:discover\"\r\n"
+        "MX: 1\r\n"
+        "ST: ssdp:all\r\n"
+        "\r\n"
+    )
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    sock.settimeout(timeout)
+
+    results = []
+    try:
+        sock.sendto(msg.encode("utf-8"), MCAST_GRP)
+        start = time.time()
+        while True:
+            try:
+                data, addr = sock.recvfrom(2048)
+            except socket.timeout:
+                break
+            text = data.decode("utf-8", errors="replace")
+            # parse headers into a dict
+            headers = {}
+            lines = [l.strip() for l in text.splitlines() if l.strip()]
+            for line in lines[1:]:  # skip response/status line
+                if ":" in line:
+                    k, v = line.split(":", 1)
+                    headers[k.strip().lower()] = v.strip()
+            entry = {"from": addr[0], "raw": text, "headers": headers}
+            results.append(entry)
+            if time.time() - start > timeout:
+                break
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"SSDP discovery failed: {e}")
+    finally:
+        sock.close()
+
+    if ip:
+        filtered = [r for r in results if r.get("from") == ip]
+        return {"results": filtered, "ok": len(filtered) > 0}
+    return {"results": results, "ok": len(results) > 0}
+
+
+@router.post("/debug/wake-and-wait")
+def debug_wake_and_wait(ip: str, port: int = 9, wait_seconds: int = 30):
+    """Send a WOL magic packet (unicast) and wait for the host to respond to ping.
+
+    Returns: { sent: bool, became_online: bool, waited_seconds: n }
+    """
+    if not ip:
+        raise HTTPException(status_code=400, detail="Missing ip parameter")
+
+    tvs = _get_tvs_dict()
+    if ip not in tvs:
+        raise HTTPException(status_code=404, detail="TV not found")
+
+    mac = tvs[ip].get("mac")
+    if not mac:
+        raise HTTPException(status_code=400, detail="MAC address not configured for TV")
+
+    try:
+        wol.send_magic_packet_unicast(mac, ip, port)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"WOL failed to send: {e}")
+
+    # Wait for ping to succeed up to wait_seconds
+    start = time.time()
+    became_online = False
+    while time.time() - start < wait_seconds:
+        if utils.cached_ping_host(ip, force=True):
+            became_online = True
+            break
+        time.sleep(2)
+
+    return {"sent": True, "became_online": became_online, "waited_seconds": int(time.time() - start)}
 
 
 # Include API router under /api

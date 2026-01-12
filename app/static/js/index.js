@@ -8,47 +8,47 @@ let currentRemoteTV = null; // Track which TV the remote modal is controlling
 
 async function refreshThumbnail(force = false, layer = null) {
     const now = Date.now();
-    
+
     // Use provided layer or current layer
     const layerToUse = layer || currentLayer;
-    
+
     // Check if we should skip due to cache (unless force refresh)
     if (!force && (now - lastThumbnailFetch) < THUMBNAIL_CACHE_MS) {
         return;
     }
-    
+
     const img = document.getElementById('thumbnail-image');
     const loading = document.getElementById('thumbnail-loading');
     const error = document.getElementById('thumbnail-error');
-    
+
     loading.classList.remove('hidden');
     error.classList.add('hidden');
     img.style.opacity = '0.5';
-    
+
     try {
         // Add timestamp to prevent browser caching
         const timestamp = new Date().getTime();
         const response = await fetch(`/api/thumbnail?layer=${layerToUse}&t=${timestamp}`);
-        
+
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}`);
         }
-        
+
         const blob = await response.blob();
         const objectUrl = URL.createObjectURL(blob);
-        
+
         // Revoke old object URL if it exists
         if (img.src && img.src.startsWith('blob:')) {
             URL.revokeObjectURL(img.src);
         }
-        
+
         img.src = objectUrl;
         img.style.opacity = '1';
         loading.classList.add('hidden');
-        
+
         // Update last fetch time
         lastThumbnailFetch = now;
-        
+
     } catch (err) {
         console.error('Error loading thumbnail:', err);
         error.classList.remove('hidden');
@@ -64,25 +64,25 @@ async function loadResolumeColumns() {
         if (res.ok) {
             const data = await res.json();
             resolumeColumns = data.columns || [];
-            
+
             const grid = document.getElementById('columns-grid');
             grid.innerHTML = '';
-            
+
             // Filter out unused columns (Column #)
             const usedColumns = resolumeColumns.filter(col => !col.name.includes('Column #'));
-            
+
             if (usedColumns.length === 0) {
                 grid.innerHTML = '<div class="text-sm text-slate-400 col-span-2 text-center py-4">No columns found</div>';
                 return;
             }
-            
+
             usedColumns.forEach(column => {
                 const btn = document.createElement('button');
                 btn.onclick = () => triggerColumn(column.index);
                 // Check if column is connected (handle both boolean and string values)
                 const isConnected = column.connected === true || column.connected === 'Connected';
                 const isEmpty = column.connected === 'Empty';
-                
+
                 let activeClass;
                 if (isConnected) {
                     activeClass = 'bg-green-600 hover:bg-green-700 border-green-500';
@@ -91,7 +91,7 @@ async function loadResolumeColumns() {
                 } else {
                     activeClass = 'bg-blue-600 hover:bg-blue-700 border-blue-500';
                 }
-                
+
                 btn.className = `px-3 py-2 text-sm font-medium rounded-md text-white ${activeClass} border transition-colors`;
                 btn.textContent = column.name || `Column ${column.index}`;
                 grid.appendChild(btn);
@@ -109,7 +109,7 @@ async function triggerColumn(columnIndex) {
         const res = await fetch(`/api/resolume/column/${columnIndex}/connect`, {
             method: 'POST'
         });
-        
+
         if (res.ok) {
             console.log(`Triggered column ${columnIndex}`);
             // Refresh thumbnail and columns to show updated state
@@ -130,17 +130,17 @@ async function loadResolumeData() {
 async function triggerSelectedClip() {
     const clipSelect = document.getElementById('clip-select');
     const selectedClip = parseInt(clipSelect.value);
-    
+
     if (isNaN(selectedClip) || selectedClip < 0) {
         alert('Please select a valid clip');
         return;
     }
-    
+
     try {
         const res = await fetch(`/api/resolume/clip/${selectedClip}/connect`, {
             method: 'POST'
         });
-        
+
         if (res.ok) {
             console.log(`Triggered clip ${selectedClip}`);
             await refreshThumbnail(true);
@@ -159,14 +159,13 @@ let isGlobalCommandInProgress = false;
 
 function showToast(message, type = 'info') {
     const toast = document.createElement('div');
-    toast.className = `fixed top-20 right-4 px-6 py-3 rounded-lg shadow-lg text-white z-50 transition-opacity duration-300 ${
-        type === 'success' ? 'bg-green-600' : 
-        type === 'error' ? 'bg-red-600' : 
-        'bg-blue-600'
-    }`;
+    toast.className = `fixed top-20 right-4 px-6 py-3 rounded-lg shadow-lg text-white z-50 transition-opacity duration-300 ${type === 'success' ? 'bg-green-600' :
+        type === 'error' ? 'bg-red-600' :
+            'bg-blue-600'
+        }`;
     toast.textContent = message;
     document.body.appendChild(toast);
-    
+
     setTimeout(() => {
         toast.style.opacity = '0';
         setTimeout(() => toast.remove(), 300);
@@ -191,11 +190,11 @@ function setGlobalRemoteLoading(loading) {
 
 async function sendGlobalKey(key) {
     if (isGlobalCommandInProgress) return;
-    
+
     try {
         setGlobalRemoteLoading(true);
         showToast('Sending command to all TVs...', 'info');
-        
+
         const res = await fetch('/api/tvs/broadcast-key', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -232,7 +231,7 @@ function closeRemoteModal(event) {
     if (event && event.target.id !== 'tv-remote-modal') {
         return;
     }
-    
+
     const modal = document.getElementById('tv-remote-modal');
     modal.classList.add('hidden');
     modal.classList.remove('flex');
@@ -250,7 +249,7 @@ function closeGlobalRemote(event) {
     if (event && event.target.id !== 'global-remote-modal') {
         return;
     }
-    
+
     const modal = document.getElementById('global-remote-modal');
     modal.classList.add('hidden');
     modal.classList.remove('flex');
@@ -261,7 +260,7 @@ async function sendIndividualKey(key) {
         console.error('No TV selected for remote control');
         return;
     }
-    
+
     try {
         const res = await fetch(`/api/tvs/${encodeURIComponent(currentRemoteTV.ip)}/send-key`, {
             method: 'POST',
@@ -287,10 +286,10 @@ async function fetchTVs() {
     try {
         const res = await fetch('/api/tvs/status');
         if (!res.ok) throw new Error('Failed to fetch TVs');
-        
+
         tvData = await res.json();
         renderTVGrid();
-        
+
         const loading = document.getElementById('loading');
         if (loading) loading.style.display = 'none';
     } catch (error) {
@@ -313,21 +312,21 @@ function renderTVGrid() {
             if (!match) return 999; // Put unknown names at the end
             const letter = match[1].toUpperCase();
             const num = parseInt(match[2]);
-            
+
             // T = 0-99, M = 100-199, B = 200-299
             if (letter === 'T') return num;
             if (letter === 'M') return 100 + num;
             if (letter === 'B') return 200 + num;
             return 999;
         };
-        
+
         return getOrder(a.name) - getOrder(b.name);
     });
 
     sortedTVs.forEach(tv => {
         const card = document.createElement('div');
         const statusClass = tv.online ? 'online' : 'offline';
-        
+
         let powerIcon = '';
         let powerColor = 'text-slate-600';
         let powerState = 'Unknown';
@@ -351,7 +350,7 @@ function renderTVGrid() {
         }
 
         card.className = `tv-card ${statusClass}`;
-        
+
         card.innerHTML = `
             <div class="tv-card-content">
                 <div class="flex items-start justify-between">
@@ -368,21 +367,34 @@ function renderTVGrid() {
 
                 <div class="flex items-center gap-2">
                     <button onclick="togglePower('${tv.ip}', '${tv.name}')" 
-                        class="flex-1 px-3 py-2 text-xs font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-colors">
-                        Power
+                        class="flex-1 px-3 py-2 text-xs font-medium rounded-md text-slate-400 bg-transparent hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-500 transition-colors flex items-center justify-center">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M18.36 6.64a9 9 0 1 1-12.73 0"/>
+                            <line x1="12" x2="12" y1="2" y2="12"/>
+                            <line x1="12" x2="12.01" y1="22" y2="18"/>
+                        </svg>
                     </button>
                     <button onclick="openRemoteModal('${tv.ip}', '${tv.name}')" 
-                        class="flex-1 px-3 py-2 text-xs font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors">
-                        Remote
+                        class="flex-1 px-3 py-2 text-xs font-medium rounded-md text-slate-400 bg-transparent hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-500 transition-colors flex items-center justify-center">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <line x1="6" x2="10" y1="11" y2="11" stroke-width="3"/>
+                            <line x1="8" x2="8" y1="9" y2="13" stroke-width="3"/>
+                            <line x1="15" x2="15.01" y1="12" y2="12" stroke-width="3"/>
+                            <line x1="18" x2="18.01" y1="10" y2="14" stroke-width="3"/>
+                            <path stroke-width="3" d="M17.32 5H6.68a4 4 0 0 0-3.978 3.59c-.006.052-.01.101-.017.152C2.604 9.416 2 14.456 2 16a3 3 0 0 0 3 3c1 0 1.5-.5 2-1l1.414-1.414A2 2 0 0 1 9.828 16H14.17a2 2 0 0 1 1.414.586L17 18c.5.5 1 1 2 1a3 3 0 0 0 3-3c0-1.545-.604-6.584-.685-7.258A4 4 0 0 0 17.32 5z"/>
+                        </svg>
                     </button>
                     <button onclick="window.location.href='/debug.html?ip=${encodeURIComponent(tv.ip)}'" 
-                        class="flex-1 px-3 py-2 text-xs font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
-                        Debug
+                        class="flex-1 px-3 py-2 text-xs font-medium rounded-md text-slate-400 bg-transparent hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-500 transition-colors flex items-center justify-center">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <polyline stroke-width="3" points="4,17 10,11 4,5"/>
+                            <line stroke-width="3" x1="12" x2="20" y1="19" y2="19"/>
+                        </svg>
                     </button>
                 </div>
             </div>
         `;
-        
+
         grid.appendChild(card);
     });
 }
@@ -421,9 +433,9 @@ async function refreshNow() {
             Refreshing...
         `;
     }
-    
+
     await fetchTVs();
-    
+
     if (btn) {
         btn.disabled = false;
         btn.innerHTML = `
