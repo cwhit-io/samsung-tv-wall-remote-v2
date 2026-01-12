@@ -99,9 +99,6 @@ const Debug = () => {
         }
     }
 
-    // Simulated tests similar to static page
-    const sleep = ms => new Promise(r => setTimeout(r, ms));
-
     async function testPing(ip) {
         const url = `/api/debug/ping?ip=${encodeURIComponent(ip)}&force=true`;
         log('info', `Testing ping to ${ip}... (url: ${url})`);
@@ -245,6 +242,9 @@ const Debug = () => {
 
                     log('info', 'Diagnostic suite complete');
                     break;
+                default:
+                    log('warning', `Unknown test type: ${testType}`);
+                    break;
             }
         } catch (e) {
             log('error', `Test failed: ${e.message}`);
@@ -357,7 +357,7 @@ const Debug = () => {
             {errorLoading && (
                 <div className="mb-6 bg-red-900/30 border border-red-800 rounded-lg p-4">
                     <div className="flex"><svg className="h-5 w-5 text-red-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" /></svg>
-                        <p className="ml-3 text-sm text-red-800">Failed to load TV configuration. Check that /config/tvs.json exists and is valid.</p></div>
+                        <p className="ml-3 text-sm text-red-800">Failed to load TV configuration. Check that the backend can read config/tvs.json and that /api/config/tvs returns valid JSON.</p></div>
                 </div>
             )}
 
@@ -404,6 +404,16 @@ const Debug = () => {
                 <h3 className="text-lg font-semibold text-slate-100 mb-4">Token Pairing</h3>
                 <div className="mb-4">
                     <p className="text-sm text-slate-400 mb-4">Request a new authentication token from the TV. This will trigger a pairing prompt on the TV screen that you must accept.</p>
+                    <div className="bg-slate-800 rounded-lg p-4 mb-4">
+                        <h4 className="text-sm font-medium text-slate-300 mb-2">Instructions:</h4>
+                        <ol className="text-sm text-slate-400 space-y-1 list-decimal list-inside">
+                            <li>Ensure the TV is fully ON (not in standby mode)</li>
+                            <li>Click “Request New Token” below</li>
+                            <li>Check the TV screen for a pairing prompt</li>
+                            <li>Use the TV remote to select “Allow”</li>
+                            <li>The new token will be saved to config/tvs.json</li>
+                        </ol>
+                    </div>
                     <div className="flex gap-3">
                         <button onClick={requestNewToken} disabled={buttonsDisabled} className="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-orange-600 hover:bg-orange-700">Request New Token</button>
                         <button onClick={refreshAllTokens} disabled={buttonsDisabled} className="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700">Refresh All Tokens</button>

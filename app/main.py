@@ -577,8 +577,13 @@ def get_resolume_layers():
 
 
 @router.get("/resolume/columns")
-def get_resolume_columns():
-    """Get list of all columns from Resolume composition."""
+def get_resolume_columns(layer: int = 1):
+    """Get list of all columns from Resolume composition.
+
+    Note: Resolume's per-column 'connected' state is best reflected by looking
+    at the clips on a specific layer. This endpoint therefore accepts a
+    `layer` query param and derives `connected` from that layer's clips.
+    """
     try:
         # Get composition to find column count
         comp_response = requests.get(f"{RESOLUME_BASE_URL}/composition", timeout=5)
@@ -589,41 +594,33 @@ def get_resolume_columns():
         # Columns might be in the composition object or we need to iterate through layers
         columns = []
         
-        # First, try to find how many columns exist by checking layer 1
-        layer1_response = requests.get(f"{RESOLUME_BASE_URL}/composition/layers/1", timeout=5)
-        if layer1_response.status_code == 200:
-            layer1_data = layer1_response.json()
-            clips = layer1_data.get('clips', [])
+        # Determine number of columns by checking the requested layer
+        layer_response = requests.get(f"{RESOLUME_BASE_URL}/composition/layers/{layer}", timeout=5)
+        if layer_response.status_code == 200:
+            layer_data = layer_response.json()
+            clips = layer_data.get('clips', [])
             
             # Get info for each column by index
             for i in range(len(clips)):
                 column_index = i + 1
+                clip = clips[i]
+                connected = clip.get('connected', {}).get('value', False)
                 try:
+                    # Prefer the column header name from Resolume's columns API
                     col_response = requests.get(f"{RESOLUME_BASE_URL}/composition/columns/{column_index}", timeout=2)
                     if col_response.status_code == 200:
                         col_data = col_response.json()
-                        columns.append({
-                            'index': column_index,
-                            'name': col_data.get('name', {}).get('value', f'Column {column_index}'),
-                            'connected': col_data.get('connected', {}).get('value', False)
-                        })
+                        name = col_data.get('name', {}).get('value', f'Column {column_index}')
                     else:
-                        # If column endpoint doesn't work, use clip name from layer 1
-                        clip = clips[i]
-                        columns.append({
-                            'index': column_index,
-                            'name': clip.get('name', {}).get('value', f'Column {column_index}'),
-                            'connected': clip.get('connected', {}).get('value', False)
-                        })
-                except:
-                    # Fallback: use clip info from layer 1
-                    if i < len(clips):
-                        clip = clips[i]
-                        columns.append({
-                            'index': column_index,
-                            'name': clip.get('name', {}).get('value', f'Column {column_index}'),
-                            'connected': clip.get('connected', {}).get('value', False)
-                        })
+                        name = clip.get('name', {}).get('value', f'Column {column_index}')
+                except Exception:
+                    name = clip.get('name', {}).get('value', f'Column {column_index}')
+
+                columns.append({
+                    'index': column_index,
+                    'name': name,
+                    'connected': connected,
+                })
         
         return {'columns': columns}
         
@@ -636,29 +633,44 @@ def get_resolume_columns():
 
 
 @router.post("/resolume/column/{column_index}/connect")
-def trigger_resolume_column(column_index: int):
-    """Trigger (fire) a specific column in Resolume.
-    
-    Uses the official Resolume API column connect endpoint.
+def trigger_resolume_column(column_index: int, layer: int = 1):
+    """Trigger (fire) a specific column in Resolume for a given layer.
+
+    Resolume's clip connect endpoints behave like triggers and are reliably
+    activated via an *empty POST* (no JSON body). We therefore map a
+    (layer, column) selection to the corresponding clip ID and trigger it.
+
     Column index is 1-based (Column 1, Column 2, etc.)
     """
     try:
-        # Use the official Resolume column connect endpoint
-        # Resolume expects plain data "1" not JSON
+        layer_response = requests.get(f"{RESOLUME_BASE_URL}/composition/layers/{layer}", timeout=5)
+        if layer_response.status_code != 200:
+            raise HTTPException(status_code=404, detail=f"Resolume layer {layer} not found")
+
+        layer_data = layer_response.json()
+        clips = layer_data.get('clips', [])
+        clip_idx = column_index - 1
+        if clip_idx < 0 or clip_idx >= len(clips):
+            raise HTTPException(status_code=404, detail=f"No clip at column {column_index} on layer {layer}")
+
+        clip_id = clips[clip_idx].get('id')
+        if not clip_id:
+            raise HTTPException(status_code=500, detail=f"Clip at column {column_index} on layer {layer} has no id")
+
+        # Trigger the clip (empty POST)
         response = requests.post(
-            f"{RESOLUME_BASE_URL}/composition/columns/{column_index}/connect",
-            data="1",
-            headers={"Content-Type": "application/json"},
+            f"{RESOLUME_BASE_URL}/composition/clips/by-id/{clip_id}/connect",
             timeout=5
         )
-        
-        # Resolume returns 204 No Content on success
+
         if response.status_code not in [200, 204]:
             response.raise_for_status()
-        
+
         return {
             "status": "success",
-            "column": column_index
+            "column": column_index,
+            "layer": layer,
+            "clip_id": clip_id,
         }
         
     except requests.exceptions.Timeout:
@@ -725,10 +737,9 @@ def get_resolume_layer_clips(layer_index: int):
 def connect_resolume_clip(clip_id: int):
     """Connect (trigger) a specific clip in Resolume."""
     try:
-        # Trigger the clip by setting its connect value
+        # Resolume clip connect behaves like a trigger: use an empty POST.
         response = requests.post(
             f"{RESOLUME_BASE_URL}/composition/clips/by-id/{clip_id}/connect",
-            json={"value": True},
             timeout=5
         )
         response.raise_for_status()

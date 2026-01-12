@@ -1,5 +1,6 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import Layout from './components/Layout';
 import Home from './components/Home';
 import Status from './components/Status';
 import Debug from './components/Debug';
@@ -12,13 +13,13 @@ function App() {
 
   return (
     <Router basename={basename || '/'}>
-      <div className="min-h-screen bg-slate-950">
-        <Routes>
+      <Routes>
+        <Route element={<Layout />}>
           <Route path="/" element={<Home />} />
           <Route path="/status" element={<Status />} />
           <Route path="/debug" element={<Debug />} />
-        </Routes>
-      </div>
+        </Route>
+      </Routes>
     </Router>
   );
 }
