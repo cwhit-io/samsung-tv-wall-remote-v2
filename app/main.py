@@ -34,6 +34,7 @@ app.add_middleware(
 static_dir = Path(__file__).resolve().parents[0] / "static"
 
 from fastapi import APIRouter
+import json
 
 router = APIRouter(prefix="/api")
 
@@ -742,6 +743,25 @@ def connect_resolume_clip(clip_id: int):
         raise HTTPException(status_code=500, detail=f"Failed to connect clip: {str(e)}")
 
 
+@router.get("/config/tvs")
+def api_get_tvs():
+    """Return parsed TV configuration (validates JSON server-side).
+
+    This is safer for the frontend than serving the raw file directly because
+    it returns a descriptive 5xx error when the JSON is invalid.
+    """
+    if not CONFIG_PATH.exists():
+        raise HTTPException(status_code=404, detail="Config file not found")
+    try:
+        with open(CONFIG_PATH, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        return data
+    except json.JSONDecodeError as e:
+        raise HTTPException(status_code=500, detail=f"Invalid JSON in config: {e}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to load config: {e}")
+
+
 # Debug helper endpoints: ping, port check, SSDP discovery, and wake-and-wait
 @router.get("/debug/ping")
 def debug_ping(ip: str, force: bool = False):
@@ -778,36 +798,7 @@ def debug_ssdp(ip: str | None = None, timeout: float = 2.0):
     print(f"[debug] ssdp requested for ip={ip} timeout={timeout}")
     MCAST_GRP = ("239.255.255.250", 1900)
 
-
-@router.get("/debug/ping-raw")
-def debug_ping_raw(ip: str, count: int = 3, timeout: int = 1):
-    """Run the system ping command and return the raw output for diagnostics.
-
-    Query params:
-      - ip: target IP
-      - count: number of pings to send
-      - timeout: per-ping timeout in seconds
-    """
-    print(f"[debug] raw ping requested for ip={ip} count={count} timeout={timeout}")
-    if not ip:
-        raise HTTPException(status_code=400, detail="Missing ip parameter")
-
-    system = platform.system().lower()
-    if "windows" in system:
-        cmd = ["ping", "-n", str(count), "-w", str(int(timeout * 1000)), ip]
-    else:
-        # linux / mac
-        cmd = ["ping", "-c", str(count), "-W", str(int(timeout)), ip]
-
-    try:
-        res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=max(5, count * (timeout + 1)))
-        stdout = res.stdout.decode("utf-8", errors="replace")
-        stderr = res.stderr.decode("utf-8", errors="replace")
-        return {"rc": res.returncode, "stdout": stdout, "stderr": stderr}
-    except subprocess.TimeoutExpired:
-        raise HTTPException(status_code=504, detail="Ping command timed out")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Ping failed: {e}")    msg = (
+    msg = (
         "M-SEARCH * HTTP/1.1\r\n"
         f"HOST: {MCAST_GRP[0]}:{MCAST_GRP[1]}\r\n"
         "MAN: \"ssdp:discover\"\r\n"
@@ -849,6 +840,37 @@ def debug_ping_raw(ip: str, count: int = 3, timeout: int = 1):
         filtered = [r for r in results if r.get("from") == ip]
         return {"results": filtered, "ok": len(filtered) > 0}
     return {"results": results, "ok": len(results) > 0}
+
+
+@router.get("/debug/ping-raw")
+def debug_ping_raw(ip: str, count: int = 3, timeout: int = 1):
+    """Run the system ping command and return the raw output for diagnostics.
+
+    Query params:
+      - ip: target IP
+      - count: number of pings to send
+      - timeout: per-ping timeout in seconds
+    """
+    print(f"[debug] raw ping requested for ip={ip} count={count} timeout={timeout}")
+    if not ip:
+        raise HTTPException(status_code=400, detail="Missing ip parameter")
+
+    system = platform.system().lower()
+    if "windows" in system:
+        cmd = ["ping", "-n", str(count), "-w", str(int(timeout * 1000)), ip]
+    else:
+        # linux / mac
+        cmd = ["ping", "-c", str(count), "-W", str(int(timeout)), ip]
+
+    try:
+        res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=max(5, count * (timeout + 1)))
+        stdout = res.stdout.decode("utf-8", errors="replace")
+        stderr = res.stderr.decode("utf-8", errors="replace")
+        return {"rc": res.returncode, "stdout": stdout, "stderr": stderr}
+    except subprocess.TimeoutExpired:
+        raise HTTPException(status_code=504, detail="Ping command timed out")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ping failed: {e}")
 
 
 from pydantic import BaseModel

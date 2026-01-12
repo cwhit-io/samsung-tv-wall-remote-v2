@@ -31,38 +31,48 @@ const Debug = () => {
     // Helper log shortcuts
     const log = (type, message) => push(type, message);
 
-    useEffect(() => {
-        const ip = searchParams.get('ip');
-        loadTVs().then(() => {
-            if (ip && tvsData[ip]) setCurrentIP(ip);
-            // if ip param present but data not loaded yet, we'll set it after load
-        });
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
-
-    useEffect(() => {
-        // scroll on new logs
-        if (logContainerRef.current) {
-            logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
-        }
-    }, [entries]);
-
+    // Load TV config and return the parsed TV map (tvs) for callers
     async function loadTVs() {
         try {
             setLoadingTVs(true);
-            const r = await fetch('/config/tvs.json');
-            if (!r.ok) throw new Error('Failed to load config');
+            const r = await fetch('/api/config/tvs');
+            if (!r.ok) {
+                const txt = await r.text().catch(() => r.statusText || '');
+                throw new Error(`Failed to load config (HTTP ${r.status}): ${txt}`);
+            }
             const data = await r.json();
-            setTvsData(data.tvs || {});
-            log('success', `Loaded ${Object.keys(data.tvs || {}).length} TV(s) from configuration`);
+            if (!data || typeof data !== 'object' || !data.tvs) {
+                throw new Error('Invalid config format: missing "tvs" key');
+            }
+            const tvs = data.tvs || {};
+            setTvsData(tvs);
+            log('success', `Loaded ${Object.keys(tvs).length} TV(s) from configuration`);
             setErrorLoading(false);
+            return tvs;
         } catch (e) {
             log('error', `Failed to load TV configuration: ${e.message}`);
             setErrorLoading(true);
+            return null;
         } finally {
             setLoadingTVs(false);
         }
     }
+
+    // On mount, load TVs and pre-select any ip from query params
+    useEffect(() => {
+        const ip = searchParams.get('ip');
+        loadTVs().then((tvs) => {
+            if (ip && tvs && tvs[ip]) setCurrentIP(ip);
+        });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [searchParams]);
+
+    // Keep log scrolled to bottom when entries change
+    useEffect(() => {
+        if (logContainerRef.current) {
+            logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
+        }
+    }, [entries]);
 
     function selectTV(ip) {
         setCurrentIP(ip);
