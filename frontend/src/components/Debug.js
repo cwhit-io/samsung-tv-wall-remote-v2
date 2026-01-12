@@ -93,17 +93,38 @@ const Debug = () => {
     const sleep = ms => new Promise(r => setTimeout(r, ms));
 
     async function testPing(ip) {
-        log('info', `Testing ping to ${ip}...`);
+        const url = `/api/debug/ping?ip=${encodeURIComponent(ip)}&force=true`;
+        log('info', `Testing ping to ${ip}... (url: ${url})`);
         try {
-            const r = await fetch(`/api/debug/ping?ip=${encodeURIComponent(ip)}&force=true`);
+            const r = await fetch(url);
             if (!r.ok) {
-                log('error', `Ping check failed (HTTP ${r.status})`);
+                const txt = await r.text().catch(() => '');
+                log('error', `Ping check failed (HTTP ${r.status}): ${txt}`);
                 return false;
             }
             const data = await r.json();
-            if (data.ok) log('success', `✓ Ping successful`);
-            else log('error', `✗ Ping failed: Host unreachable`);
-            return !!data.ok;
+            if (data.ok) {
+                log('success', `✓ Ping successful`);
+                return true;
+            } else {
+                log('error', `✗ Ping failed: Host unreachable`);
+                // Fetch raw ping output for diagnostics
+                try {
+                    const r2 = await fetch(`/api/debug/ping-raw?ip=${encodeURIComponent(ip)}&count=3&timeout=1`);
+                    if (r2.ok) {
+                        const raw = await r2.json();
+                        log('info', `Raw ping rc=${raw.rc}`);
+                        if (raw.stdout) log('info', `Ping stdout: ${raw.stdout.replace(/\n/g, ' | ')}`);
+                        if (raw.stderr) log('info', `Ping stderr: ${raw.stderr.replace(/\n/g, ' | ')}`);
+                    } else {
+                        const txt = await r2.text().catch(() => '');
+                        log('warning', `Failed to get raw ping output (HTTP ${r2.status}): ${txt}`);
+                    }
+                } catch (e) {
+                    log('warning', `Could not fetch raw ping: ${e.message}`);
+                }
+                return false;
+            }
         } catch (e) {
             log('error', `Ping error: ${e.message}`);
             return false;
@@ -111,11 +132,13 @@ const Debug = () => {
     }
 
     async function testPort(ip, port) {
-        log('info', `Checking port ${port} on ${ip}...`);
+        const url = `/api/debug/port?ip=${encodeURIComponent(ip)}&port=${port}&force=true`;
+        log('info', `Checking port ${port} on ${ip}... (url: ${url})`);
         try {
-            const r = await fetch(`/api/debug/port?ip=${encodeURIComponent(ip)}&port=${port}&force=true`);
+            const r = await fetch(url);
             if (!r.ok) {
-                log('error', `Port check failed (HTTP ${r.status})`);
+                const txt = await r.text().catch(() => '');
+                log('error', `Port check failed (HTTP ${r.status}): ${txt}`);
                 return false;
             }
             const data = await r.json();
@@ -129,11 +152,13 @@ const Debug = () => {
     }
 
     async function testSsdp(ip) {
-        log('info', `Broadcasting SSDP discovery request...`);
+        const url = `/api/debug/ssdp?ip=${encodeURIComponent(ip)}&timeout=2`;
+        log('info', `Broadcasting SSDP discovery request... (url: ${url})`);
         try {
-            const r = await fetch(`/api/debug/ssdp?ip=${encodeURIComponent(ip)}&timeout=2`);
+            const r = await fetch(url);
             if (!r.ok) {
-                log('error', `SSDP discovery failed (HTTP ${r.status})`);
+                const txt = await r.text().catch(() => '');
+                log('error', `SSDP discovery failed (HTTP ${r.status}): ${txt}`);
                 return false;
             }
             const data = await r.json();
@@ -158,11 +183,13 @@ const Debug = () => {
         log('info', `Sending WOL magic packet to ${mac}...`);
         log('info', `  Target IP: ${ip}`);
         try {
+            const payload = { ip, port: 9, wait_seconds: 30 };
             const r = await fetch(`/api/debug/wake-and-wait`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ip, port: 9, wait_seconds: 30 })
+                body: JSON.stringify(payload)
             });
+            log('info', `WOL request sent to /api/debug/wake-and-wait with payload: ${JSON.stringify(payload)}`);
             if (!r.ok) {
                 const text = await r.text();
                 log('error', `WOL request failed (HTTP ${r.status}): ${text}`);
@@ -197,10 +224,15 @@ const Debug = () => {
                 case 'all':
                     log('info', '═══════════════════════════════════════');
                     log('info', 'Running comprehensive diagnostic suite...');
-                    await testPing(currentIP);
-                    await testPort(currentIP, 8001);
-                    await testPort(currentIP, 8002);
+                    const pingOk = await testPing(currentIP);
+                    const port1Ok = await testPort(currentIP, 8001);
+                    const port2Ok = await testPort(currentIP, 8002);
                     await testSsdp(currentIP);
+
+                    if (!pingOk && (port1Ok || port2Ok)) {
+                        log('info', 'Note: ICMP ping was blocked, but service ports are reachable (ports open).');
+                    }
+
                     log('info', 'Diagnostic suite complete');
                     break;
             }

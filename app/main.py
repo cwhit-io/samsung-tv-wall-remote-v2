@@ -10,6 +10,8 @@ import requests
 import socket
 import select
 import time
+import subprocess
+import platform
 
 from app.config import load_tvs, save_tvs, CONFIG_PATH
 from app.models import TV, WakeRequest
@@ -744,6 +746,7 @@ def connect_resolume_clip(clip_id: int):
 @router.get("/debug/ping")
 def debug_ping(ip: str, force: bool = False):
     """Return whether the host responds to ping (uses cached_ping_host)."""
+    print(f"[debug] ping requested for ip={ip} force={force}")
     if not ip:
         raise HTTPException(status_code=400, detail="Missing ip parameter")
     try:
@@ -756,6 +759,7 @@ def debug_ping(ip: str, force: bool = False):
 @router.get("/debug/port")
 def debug_port(ip: str, port: int = 8002, force: bool = False):
     """Check whether a TCP port is open on the host (uses cached_check_tcp_port)."""
+    print(f"[debug] port check requested for ip={ip} port={port} force={force}")
     if not ip:
         raise HTTPException(status_code=400, detail="Missing ip parameter")
     try:
@@ -771,8 +775,39 @@ def debug_ssdp(ip: str | None = None, timeout: float = 2.0):
 
     If `ip` is provided, filter responses to those originating from that IP.
     """
+    print(f"[debug] ssdp requested for ip={ip} timeout={timeout}")
     MCAST_GRP = ("239.255.255.250", 1900)
-    msg = (
+
+
+@router.get("/debug/ping-raw")
+def debug_ping_raw(ip: str, count: int = 3, timeout: int = 1):
+    """Run the system ping command and return the raw output for diagnostics.
+
+    Query params:
+      - ip: target IP
+      - count: number of pings to send
+      - timeout: per-ping timeout in seconds
+    """
+    print(f"[debug] raw ping requested for ip={ip} count={count} timeout={timeout}")
+    if not ip:
+        raise HTTPException(status_code=400, detail="Missing ip parameter")
+
+    system = platform.system().lower()
+    if "windows" in system:
+        cmd = ["ping", "-n", str(count), "-w", str(int(timeout * 1000)), ip]
+    else:
+        # linux / mac
+        cmd = ["ping", "-c", str(count), "-W", str(int(timeout)), ip]
+
+    try:
+        res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=max(5, count * (timeout + 1)))
+        stdout = res.stdout.decode("utf-8", errors="replace")
+        stderr = res.stderr.decode("utf-8", errors="replace")
+        return {"rc": res.returncode, "stdout": stdout, "stderr": stderr}
+    except subprocess.TimeoutExpired:
+        raise HTTPException(status_code=504, detail="Ping command timed out")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ping failed: {e}")    msg = (
         "M-SEARCH * HTTP/1.1\r\n"
         f"HOST: {MCAST_GRP[0]}:{MCAST_GRP[1]}\r\n"
         "MAN: \"ssdp:discover\"\r\n"
@@ -816,14 +851,31 @@ def debug_ssdp(ip: str | None = None, timeout: float = 2.0):
     return {"results": results, "ok": len(results) > 0}
 
 
+from pydantic import BaseModel
+
+
+class DebugWakeRequest(BaseModel):
+    ip: str
+    port: int = 9
+    wait_seconds: int = 30
+
+
 @router.post("/debug/wake-and-wait")
-def debug_wake_and_wait(ip: str, port: int = 9, wait_seconds: int = 30):
+def debug_wake_and_wait(req: DebugWakeRequest):
     """Send a WOL magic packet (unicast) and wait for the host to respond to ping.
+
+    Accepts JSON body: { ip, port=9, wait_seconds=30 }
 
     Returns: { sent: bool, became_online: bool, waited_seconds: n }
     """
+    ip = req.ip
+    port = req.port
+    wait_seconds = req.wait_seconds
+
     if not ip:
         raise HTTPException(status_code=400, detail="Missing ip parameter")
+
+    print(f"[debug] wake-and-wait called for ip={ip} port={port} wait_seconds={wait_seconds}")
 
     tvs = _get_tvs_dict()
     if ip not in tvs:
@@ -848,7 +900,6 @@ def debug_wake_and_wait(ip: str, port: int = 9, wait_seconds: int = 30):
         time.sleep(2)
 
     return {"sent": True, "became_online": became_online, "waited_seconds": int(time.time() - start)}
-
 
 # Include API router under /api
 app.include_router(router)
