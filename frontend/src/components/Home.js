@@ -281,65 +281,72 @@ const Home = () => {
                 ) : (
                     <div className="grid grid-cols-5 gap-4" id="tv-grid">
                         {sortedTVs.map(tv => {
-                            let powerIcon = '○';
-                            let powerColor = 'text-slate-600';
-                            let powerState = 'Unknown';
+                            const wsOk = tv.ws_online === true;
+
+                            let powerLabel = 'Unknown';
+                            let powerBadgeClass = 'unknown';
                             if (tv.power_state) {
                                 const state = String(tv.power_state).toLowerCase();
                                 if (state === 'on') {
-                                    powerIcon = '●';
-                                    powerColor = 'text-green-400';
-                                    powerState = 'On';
+                                    powerLabel = 'On';
+                                    powerBadgeClass = 'on';
                                 } else if (state === 'standby') {
-                                    powerIcon = '●';
-                                    powerColor = 'text-orange-400';
-                                    powerState = 'Standby';
+                                    powerLabel = 'Standby';
+                                    powerBadgeClass = 'standby';
                                 } else {
-                                    powerIcon = '●';
-                                    powerColor = 'text-red-400';
-                                    powerState = 'Off';
+                                    powerLabel = 'Off';
+                                    powerBadgeClass = 'off';
                                 }
                             }
 
                             return (
                                 <div key={tv.ip} className={`tv-card ${tv.online ? 'online' : 'offline'}`}>
                                     <div className="tv-card-content">
-                                        <div className="flex items-start justify-between">
-                                            <div className="text-lg font-bold text-slate-100">{tv.name}</div>
-                                            <div className={`text-2xl ${powerColor}`} title={powerState}>{powerIcon}</div>
+                                        <div className={`tv-ws-dot ${wsOk ? 'ok' : 'bad'}`} title={`WebSocket: ${wsOk ? 'OK' : 'Down'}`} />
+
+                                        <div className="tv-tile-top">
+                                            <div className="tv-title" title={tv.name}>{tv.name}</div>
+                                            <div className={`tv-power-badge ${powerBadgeClass}`} title={`Power: ${powerLabel}`}>
+                                                {powerLabel}
+                                            </div>
                                         </div>
 
-                                        <div className="tv-screen">
-                                            <svg className={`w-full h-full ${tv.online ? 'text-slate-600' : 'text-slate-800'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5"
-                                                    d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                                            </svg>
-                                        </div>
-
-                                        <div className="flex items-center gap-2">
-                                            <button onClick={() => togglePower(tv.ip, tv.name)}
-                                                className="flex-1 px-3 py-2 text-xs font-medium rounded-md text-slate-400 bg-transparent hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-500 transition-colors flex items-center justify-center">
-                                                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M18.36 6.64a9 9 0 1 1-12.73 0" />
+                                        <div className="tv-actions-overlay" aria-label="TV actions">
+                                            <button
+                                                type="button"
+                                                className="tv-action-btn"
+                                                onClick={() => togglePower(tv.ip, tv.name)}
+                                                title="Power"
+                                            >
+                                                <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18.36 6.64a9 9 0 1 1-12.73 0" />
                                                     <line x1="12" x2="12" y1="2" y2="12" />
-                                                    <line x1="12" x2="12.01" y1="22" y2="18" />
                                                 </svg>
                                             </button>
-                                            <button onClick={() => openRemoteModal(tv.ip, tv.name)}
-                                                className="flex-1 px-3 py-2 text-xs font-medium rounded-md text-slate-400 bg-transparent hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-500 transition-colors flex items-center justify-center">
-                                                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <line x1="6" x2="10" y1="11" y2="11" strokeWidth="3" />
-                                                    <line x1="8" x2="8" y1="9" y2="13" strokeWidth="3" />
-                                                    <line x1="15" x2="15.01" y1="12" y2="12" strokeWidth="3" />
-                                                    <line x1="18" x2="18.01" y1="10" y2="14" strokeWidth="3" />
-                                                    <path strokeWidth="3" d="M17.32 5H6.68a4 4 0 0 0-3.978 3.59c-.006.052-.01.101-.017.152C2.604 9.416 2 14.456 2 16a3 3 0 0 0 3 3c1 0 1.5-.5 2-1l1.414-1.414A2 2 0 0 1 9.828 16H14.17a2 2 0 0 1 1.414.586L17 18c.5.5 1 1 2 1a3 3 0 0 0 3-3c0-1.545-.604-6.584-.685-7.258A4 4 0 0 0 17.32 5z" />
+
+                                            <button
+                                                type="button"
+                                                className="tv-action-btn"
+                                                onClick={() => openRemoteModal(tv.ip, tv.name)}
+                                                title="Remote"
+                                            >
+                                                <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <line x1="6" x2="10" y1="11" y2="11" strokeWidth="2" />
+                                                    <line x1="8" x2="8" y1="9" y2="13" strokeWidth="2" />
+                                                    <line x1="15" x2="15.01" y1="12" y2="12" strokeWidth="2" />
+                                                    <line x1="18" x2="18.01" y1="10" y2="14" strokeWidth="2" />
+                                                    <path strokeWidth="2" d="M17.32 5H6.68a4 4 0 0 0-3.978 3.59c-.006.052-.01.101-.017.152C2.604 9.416 2 14.456 2 16a3 3 0 0 0 3 3c1 0 1.5-.5 2-1l1.414-1.414A2 2 0 0 1 9.828 16H14.17a2 2 0 0 1 1.414.586L17 18c.5.5 1 1 2 1a3 3 0 0 0 3-3c0-1.545-.604-6.584-.685-7.258A4 4 0 0 0 17.32 5z" />
                                                 </svg>
                                             </button>
-                                            <Link to={`/debug?ip=${encodeURIComponent(tv.ip)}`}
-                                                className="flex-1 px-3 py-2 text-xs font-medium rounded-md text-slate-400 bg-transparent hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-500 transition-colors flex items-center justify-center">
-                                                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <polyline strokeWidth="3" points="4,17 10,11 4,5" />
-                                                    <line strokeWidth="3" x1="12" x2="20" y1="19" y2="19" />
+
+                                            <Link
+                                                to={`/debug?ip=${encodeURIComponent(tv.ip)}`}
+                                                className="tv-action-btn"
+                                                title="Debug"
+                                            >
+                                                <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <polyline strokeWidth="2" points="4,17 10,11 4,5" />
+                                                    <line strokeWidth="2" x1="12" x2="20" y1="19" y2="19" />
                                                 </svg>
                                             </Link>
                                         </div>
