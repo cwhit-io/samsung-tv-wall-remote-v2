@@ -127,6 +127,30 @@ const Home = () => {
         }
     }
 
+    async function wakeAllTVs() {
+        if (remoteBusy) return;
+        setRemoteBusy(true);
+        try {
+            showToast('Sending WOL to all TVs...', 'info');
+            const res = await fetch('/api/tvs/wake-all', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ port: 9 })
+            });
+            if (!res.ok) {
+                const txt = await res.text().catch(() => '');
+                throw new Error(`HTTP ${res.status}: ${txt}`);
+            }
+            const data = await res.json();
+            showToast(`✓ WOL sent to ${data.success_count}/${data.total} TVs`, 'success');
+        } catch (err) {
+            console.error(err);
+            showToast('Failed to send WOL to all TVs', 'error');
+        } finally {
+            setRemoteBusy(false);
+        }
+    }
+
     async function sendIndividualKey(key) {
         if (!remoteTV || remoteBusy) return;
         setRemoteBusy(true);
@@ -247,22 +271,54 @@ const Home = () => {
                 <div className="mb-6 flex items-center justify-between">
                     <h2 className="text-2xl font-bold text-slate-100">TV Grid</h2>
                     <div className="flex items-center gap-3">
+                        <button
+                            onClick={() => sendGlobalKey('KEY_POWER')}
+                            className="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors flex items-center gap-2"
+                            title="Send Power key to all TVs"
+                        >
+                            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18.36 6.64a9 9 0 1 1-12.73 0" />
+                                <line x1="12" x2="12" y1="2" y2="12" />
+                            </svg>
+                            Power
+                        </button>
+
+                        <button
+                            onClick={wakeAllTVs}
+                            className="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors flex items-center gap-2"
+                            title="Send Wake-on-LAN to all TVs"
+                        >
+                            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 2v4" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7.05 4.64a9 9 0 0 0 0 14.72" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16.95 4.64a9 9 0 0 1 0 14.72" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.88 7.76a5 5 0 0 0 0 8.48" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14.12 7.76a5 5 0 0 1 0 8.48" />
+                            </svg>
+                            Wake
+                        </button>
+
                         <button onClick={() => setGlobalRemoteOpen(true)}
                             className="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-colors flex items-center gap-2">
                             <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-                                    d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                <rect x="8" y="3" width="8" height="18" rx="2" strokeWidth="2" />
+                                <circle cx="12" cy="7" r="1" fill="currentColor" stroke="none" />
+                                <circle cx="12" cy="11" r="1" fill="currentColor" stroke="none" />
+                                <circle cx="12" cy="15" r="1" fill="currentColor" stroke="none" />
                             </svg>
-                            Global Remote
+                            Remote
                         </button>
-                        <button onClick={() => { setLoading(true); fetchTVs(); }} id="btnRefresh"
-                            className="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                        <button
+                            onClick={() => { setLoading(true); fetchTVs(); }}
+                            id="btnRefresh"
+                            className="px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                             disabled={loading}
+                            title="Refresh"
+                            aria-label="Refresh"
                         >
                             <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                             </svg>
-                            Refresh
                         </button>
                     </div>
                 </div>
@@ -331,11 +387,10 @@ const Home = () => {
                                                 title="Remote"
                                             >
                                                 <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <line x1="6" x2="10" y1="11" y2="11" strokeWidth="2" />
-                                                    <line x1="8" x2="8" y1="9" y2="13" strokeWidth="2" />
-                                                    <line x1="15" x2="15.01" y1="12" y2="12" strokeWidth="2" />
-                                                    <line x1="18" x2="18.01" y1="10" y2="14" strokeWidth="2" />
-                                                    <path strokeWidth="2" d="M17.32 5H6.68a4 4 0 0 0-3.978 3.59c-.006.052-.01.101-.017.152C2.604 9.416 2 14.456 2 16a3 3 0 0 0 3 3c1 0 1.5-.5 2-1l1.414-1.414A2 2 0 0 1 9.828 16H14.17a2 2 0 0 1 1.414.586L17 18c.5.5 1 1 2 1a3 3 0 0 0 3-3c0-1.545-.604-6.584-.685-7.258A4 4 0 0 0 17.32 5z" />
+                                                    <rect x="8" y="3" width="8" height="18" rx="2" strokeWidth="2" />
+                                                    <circle cx="12" cy="7" r="1" fill="currentColor" stroke="none" />
+                                                    <circle cx="12" cy="11" r="1" fill="currentColor" stroke="none" />
+                                                    <circle cx="12" cy="15" r="1" fill="currentColor" stroke="none" />
                                                 </svg>
                                             </button>
 
@@ -449,12 +504,12 @@ const Home = () => {
                 </div>
             </main>
 
-            {/* Global Remote Modal */}
+            {/* Remote Modal (All TVs) */}
             {globalRemoteOpen && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setGlobalRemoteOpen(false)}>
                     <div className="bg-gradient-to-b from-slate-800 to-slate-900 rounded-2xl shadow-2xl max-w-sm w-full mx-4 border border-slate-700" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-between p-5 border-b border-slate-700 bg-slate-800/50 rounded-t-2xl">
-                            <h3 className="text-lg font-semibold text-slate-100">Global Remote</h3>
+                            <h3 className="text-lg font-semibold text-slate-100">Remote (All TVs)</h3>
                             <button onClick={() => setGlobalRemoteOpen(false)} className="text-slate-400 hover:text-slate-100 transition-colors">
                                 <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
