@@ -32,6 +32,8 @@ app.add_middleware(
 
 # Static files served from root
 static_dir = Path(__file__).resolve().parents[0] / "static"
+react_build_dir = Path(__file__).resolve().parents[1] / "frontend" / "build"
+react_static_dir = react_build_dir / "static"
 
 from fastapi import APIRouter
 import json
@@ -959,29 +961,33 @@ def wake_tv_legacy(ip: str, req: WakeRequest):
     return wake_tv(ip, req)
 
 
-# Mount static files under /static and serve from root via explicit handlers
+def _react_index_file() -> Path:
+    return react_build_dir / "index.html"
+
+
+# React build assets under /static
+if react_static_dir.exists():
+    app.mount("/static", StaticFiles(directory=str(react_static_dir)), name="react-static")
+
+
+# Legacy static assets (previous HTML UI)
 if static_dir.exists():
-    app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+    app.mount("/legacy-static", StaticFiles(directory=str(static_dir)), name="legacy-static")
 
 
 @app.get("/")
 def root():
-    """Serve the main index/home page at root."""
+    """Serve the React UI as the default app."""
+    index = _react_index_file()
+    if index.exists():
+        return FileResponse(str(index))
+
+    # Fallback to legacy UI if React build isn't present
     page = static_dir / "index.html"
     if not page.exists():
-        # Fallback to status page if index doesn't exist
         page = static_dir / "status.html"
     if not page.exists():
-        raise HTTPException(status_code=404, detail="Index page not found")
-    return FileResponse(str(page))
-
-
-@app.get("/status.html")
-def status_page_direct():
-    """Serve the status page directly."""
-    page = static_dir / "status.html"
-    if not page.exists():
-        raise HTTPException(status_code=404, detail="Status page not found")
+        raise HTTPException(status_code=404, detail="No UI found (React build and legacy static missing)")
     return FileResponse(str(page))
 
 
@@ -993,22 +999,62 @@ def serve_config():
     raise HTTPException(status_code=404, detail="Config not found")
 
 
-@app.get("/{file_path:path}")
-def static_files(file_path: str):
-    """Serve arbitrary static files from the static directory at root paths."""
-    file = static_dir / file_path
-    if file.exists() and file.is_file():
-        return FileResponse(str(file))
-    raise HTTPException(status_code=404, detail="File not found")
+@app.get("/legacy")
+def legacy_root():
+    """Serve the legacy HTML UI entry point."""
+    page = static_dir / "index.html"
+    if not page.exists():
+        page = static_dir / "status.html"
+    if not page.exists():
+        raise HTTPException(status_code=404, detail="Legacy UI not found")
+    return FileResponse(str(page))
 
 
-@app.get("/status")
-def status_page():
-    """Serve the status HTML page."""
+@app.get("/legacy/status.html")
+def legacy_status_html():
     page = static_dir / "status.html"
     if not page.exists():
-        raise HTTPException(status_code=404, detail="Status page not found")
+        raise HTTPException(status_code=404, detail="Legacy status page not found")
     return FileResponse(str(page))
+
+
+@app.get("/legacy/debug.html")
+def legacy_debug_html():
+    page = static_dir / "debug.html"
+    if not page.exists():
+        raise HTTPException(status_code=404, detail="Legacy debug page not found")
+    return FileResponse(str(page))
+
+
+@app.get("/{file_path:path}")
+def react_spa_or_file(file_path: str):
+    """Serve React build files and SPA fallback.
+
+    - If the file exists in the React build output root, serve it.
+    - Otherwise, serve React index.html for client-side routing.
+    - Never hijack API paths.
+    """
+    normalized = file_path.lstrip("/")
+
+    # Avoid serving the SPA for API-like paths.
+    if normalized == "api" or normalized.startswith("api/"):
+        raise HTTPException(status_code=404, detail="Not found")
+
+    # Allow legacy static paths to be served via mount
+    if normalized == "legacy" or normalized.startswith("legacy/") or normalized.startswith("legacy-static/"):
+        raise HTTPException(status_code=404, detail="Not found")
+
+    # Serve files that exist in the React build root (favicon, manifest, etc.)
+    candidate = react_build_dir / normalized
+    if candidate.exists() and candidate.is_file():
+        return FileResponse(str(candidate))
+
+    # SPA fallback
+    index = _react_index_file()
+    if index.exists():
+        return FileResponse(str(index))
+
+    raise HTTPException(status_code=404, detail="UI not found")
 
 if __name__ == "__main__":
     import uvicorn

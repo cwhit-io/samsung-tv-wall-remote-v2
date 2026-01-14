@@ -2,11 +2,11 @@
 """Helper to manage the frontend dev server.
 
 Usage examples:
-  python run.py start            # runs `npm start` (PORT=8002, PUBLIC_URL=/ui/)
+    python run.py start            # runs `npm start` (PORT=8002, PUBLIC_URL=/)
   python run.py start --port 3000 # run on different port
   python run.py start --detached # run in background and log to frontend/frontend.log
   python run.py install          # run `npm install` in ./frontend
-  python run.py build            # run `npm run build` with PUBLIC_URL=/ui/
+    python run.py build            # run `npm run build` with PUBLIC_URL=/
 
 This script is intended for dev convenience on Linux/macOS.
 """
@@ -86,13 +86,13 @@ def parse_args() -> argparse.Namespace:
 
     start = sub.add_parser("start", help="Start the dev server (npm start)")
     start.add_argument("--port", type=int, default=8002, help="Port to run the dev server on (default: 8002)")
-    start.add_argument("--public-url", default="/ui/", help="PUBLIC_URL for the build/dev server (default: /ui/)")
+    start.add_argument("--public-url", default="/", help="PUBLIC_URL for the build/dev server (default: /)")
     start.add_argument("--detached", action="store_true", help="Run in background and log output to frontend/frontend.log")
 
     sub.add_parser("install", help="Run npm install in frontend/")
 
     build = sub.add_parser("build", help="Run npm run build in frontend/")
-    build.add_argument("--public-url", default="/ui/", help="PUBLIC_URL for the build (default: /ui/)")
+    build.add_argument("--public-url", default="/", help="PUBLIC_URL for the build (default: /)")
 
     args = p.parse_args()
     if not args.cmd:
