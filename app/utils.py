@@ -5,6 +5,10 @@ from typing import Tuple
 from time import time
 import threading
 
+# App name shown on Samsung TV pairing prompt.
+# Must be identical everywhere: token acquisition AND command execution.
+APP_NAME = "SamsungTVRemote"
+
 # Simple in-memory TTL cache for expensive checks
 _cache = {}
 _cache_lock = threading.Lock()
@@ -32,6 +36,18 @@ def _cache_get(key):
 def _cache_set(key, value, ttl):
     with _cache_lock:
         _cache[key] = (value, time() + ttl)
+
+
+def invalidate_token_cache(host: str) -> None:
+    """Remove all cached token-verification results for a given host.
+
+    Call this immediately after saving a new token so stale results don't mask
+    the fresh token on the next verification check.
+    """
+    with _cache_lock:
+        keys_to_delete = [k for k in _cache if k[0] == "token" and k[1] == host]
+        for k in keys_to_delete:
+            del _cache[k]
 
 
 def ping_host(ip: str, timeout: float = 1.0) -> bool:
@@ -105,62 +121,37 @@ def cached_check_tcp_port(
     return res
 
 
-import importlib
-
-
 def check_websocket_endpoint(
     host: str, port: int = 8002, token: str | None = None, timeout: float = 1.0
 ) -> bool:
-    """Check whether a websocket endpoint is reachable on host:port.
+    """Check whether the Samsung TV WebSocket endpoint accepts the given token.
 
-    When a token is provided, attempts authenticated WebSocket connection
-    using `samsungtvws`. Returns True only if WebSocket succeeds, False otherwise.
-    When no token is provided, prefers WebSocket but falls back to TCP connect
-    if WebSocket fails or samsungtvws is unavailable.
+    Uses SamsungTVWS + open() — the same path as actual command execution — so
+    a True result here means commands will also succeed.
+    Falls back to a plain TCP check only when samsungtvws is not installed and
+    no token is being validated.
     """
     try:
-        samsung = importlib.import_module("samsungtvws")
-    except Exception:
-        # If no samsungtvws and token provided, cannot validate token
+        from samsungtvws import SamsungTVWS
+    except ImportError:
+        # Library not installed; can't validate token, fall back to TCP
         if token is not None:
             return False
         return check_tcp_port(host, port, timeout=timeout)
 
-    # Try to find a usable client class in the module and attempt a connect.
-    client_class_names = ("SamsungTVWS", "SamsungTV", "Television", "TV", "Client")
-    for cls_name in client_class_names:
-        cls = getattr(samsung, cls_name, None)
-        if not cls:
-            continue
-        try:
-            # Construct client; many libs accept either (host,port) or kwargs
-            try:
-                client = cls(host=host, port=port, token=token)
-            except TypeError:
-                try:
-                    client = cls(host, port)
-                    # If there's an authenticate method, provide token
-                    if token and hasattr(client, "authenticate"):
-                        client.authenticate(token)
-                except Exception:
-                    client = cls(host, port, token)
-
-            # If client has a connect method, use it; otherwise assume construction succeeded
-            if hasattr(client, "connect"):
-                client.connect(timeout=timeout)
-            # Close if possible
-            if hasattr(client, "close"):
-                client.close()
-            return True
-        except Exception:
-            # try next candidate class
-            continue
-
-    # If token provided and all WebSocket attempts failed, token is invalid
-    if token is not None:
+    try:
+        client = SamsungTVWS(
+            host=host,
+            port=port,
+            token=token,
+            timeout=timeout,
+            name=APP_NAME,
+        )
+        client.open()
+        client.close()
+        return True
+    except Exception:
         return False
-    # Fallback to simple TCP check
-    return check_tcp_port(host, port, timeout=timeout)
 
 
 def cached_check_websocket_endpoint(
@@ -356,13 +347,12 @@ def toggle_power(
 
     for attempt in range(retries):
         try:
-            # Use 'TV Control Panel' as name to be more descriptive
             client = SamsungTVWS(
                 host=host,
                 port=port,
                 token=token,
                 timeout=timeout,
-                name="TV Control Panel",
+                name=APP_NAME,
             )
 
             # Explicitly open and wait a moment
@@ -443,9 +433,9 @@ def send_key_command(
             port=port,
             token=token,
             timeout=timeout,
-            name="TV Control Panel",
+            name=APP_NAME,
         )
-        
+
         client.open()
         time.sleep(0.5)  # Brief stabilization delay
         client.send_key(key)
@@ -493,16 +483,23 @@ def request_new_token(
         ws = websocket.create_connection(
             uri, timeout=timeout, sslopt={"cert_reqs": ssl.CERT_NONE}
         )
-        response = json.loads(ws.recv())
-        if response.get("data", {}).get("token"):
-            token = response["data"]["token"]
-            return token
-        elif response.get("event") == "ms.channel.timeOut":
-            raise RuntimeError(
-                f"Pairing request timed out. You must accept the pairing prompt on the TV screen within {timeout}s."
-            )
-        else:
-            raise RuntimeError(f"Unexpected response from TV: {response}")
+        # Some TVs send a preliminary event before ms.channel.connect, so loop
+        # through up to 5 messages to find the one that carries the token.
+        for _ in range(5):
+            response = json.loads(ws.recv())
+            event = response.get("event")
+            token = response.get("data", {}).get("token")
+            if event == "ms.channel.connect" and token:
+                return token
+            elif token and event != "ms.channel.timeOut":
+                # Older firmware may skip the event field but still deliver token
+                return token
+            elif event == "ms.channel.timeOut":
+                raise RuntimeError(
+                    f"Pairing request timed out. You must accept the pairing prompt on the TV screen within {timeout}s."
+                )
+            # else: keep reading (preliminary event, e.g. ms.channel.ready)
+        raise RuntimeError(f"TV did not deliver a token in 5 messages. Last response: {response}")
     except websocket.WebSocketTimeoutException:
         raise RuntimeError(
             f"Connection timed out after {timeout}s. TV may be off, in standby mode, or not responding. Ensure TV is fully ON and accept the pairing prompt on screen."

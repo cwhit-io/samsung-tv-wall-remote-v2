@@ -257,7 +257,7 @@ def request_new_token_endpoint(ip: str):
         raise HTTPException(status_code=404, detail="TV not found")
 
     port = tvs[ip].get("ws_port", 8002)
-    app_name = "TVControlPanel"  # App name shown on TV
+    app_name = utils.APP_NAME  # Must match name used in SamsungTVWS commands
 
     # Pre-check: Ensure TV is reachable
     if not utils.cached_ping_host(ip):
@@ -278,6 +278,7 @@ def request_new_token_endpoint(ip: str):
         # Save the new token to the config file
         tvs[ip]["token"] = token
         save_tvs(tvs)
+        utils.invalidate_token_cache(ip)
         
         return {"token": token, "message": "New token obtained and saved successfully"}
     except Exception as e:
@@ -293,7 +294,7 @@ def refresh_all_tokens():
     Returns a summary of successful and failed token refreshes.
     """
     tvs = _get_tvs_dict()
-    app_name = "TVControlPanel"
+    app_name = utils.APP_NAME  # Must match name used in SamsungTVWS commands
     
     results = {
         "success": [],
@@ -326,6 +327,7 @@ def refresh_all_tokens():
         try:
             token = utils.request_new_token(ip, port, app_name)
             tvs[ip]["token"] = token
+            utils.invalidate_token_cache(ip)
             results["success"].append({
                 "ip": ip,
                 "name": tv_name,
