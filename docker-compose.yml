@@ -4,7 +4,7 @@ services:
   tv-remote:
     build: .
     ports:
-      - "8089:8000"
+      - "8009:8009"
     volumes:
       - ./config:/app/config
     environment:
