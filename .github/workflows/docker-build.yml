@@ -38,3 +38,7 @@ jobs:
           tags: |
             ghcr.io/${{ github.repository }}:latest
             ghcr.io/${{ github.repository }}:${{ github.sha }}
+
+      - name: Print image digest
+        if: github.event_name == 'push'
+        run: echo "Pushed image digest ${{ steps.build.outputs.digest }}"

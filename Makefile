@@ -49,7 +49,7 @@ test:
 # Build Docker image
 docker-build:
 	@echo "Building Docker image..."
-	docker build -t samsung-tv-remote .
+	DOCKER_BUILDKIT=0 docker build -t samsung-tv-remote .
 
 # Run the application with Docker Compose
 compose-up:
