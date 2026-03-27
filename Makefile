@@ -20,6 +20,8 @@ setup:
 	@echo "Activating virtual environment and installing dependencies..."
 	./venv/bin/pip install --upgrade pip
 	./venv/bin/pip install -r requirements.txt
+	@echo "Building React frontend..."
+	cd frontend && npm install && npm run build
 	@echo "Setup complete. Use 'make activate' to activate the environment."
 
 # Activate virtual environment (prints the command since Make can't persist shell state)

@@ -43,7 +43,7 @@ const Layout = () => {
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
                     <div className="flex items-center justify-between">
                         <p className="text-sm text-slate-500">
-                            © {year} TV Control Panel. Built with FastAPI & React.
+                            © {year} TV Control Panel. Built with FastAPI & React. - V2
                         </p>
                         <div className="flex space-x-4 text-sm text-slate-500">
                             <a href="https://github.com/cwhit-io/tv2" target="_blank" rel="noreferrer" className="hover:text-slate-300 transition-colors">GitHub</a>
