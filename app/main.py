@@ -21,10 +21,10 @@ import app.thumbnail as thumbnail
 
 app = FastAPI(title="TV WOL Service")
 
-# CORS - allow local dev React server origins
+# CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:8002", "http://127.0.0.1:8002"],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -32,8 +32,6 @@ app.add_middleware(
 
 # Static files served from root
 static_dir = Path(__file__).resolve().parents[0] / "static"
-react_build_dir = Path(__file__).resolve().parents[1] / "frontend" / "build"
-react_static_dir = react_build_dir / "static"
 
 from fastapi import APIRouter
 import json
@@ -963,34 +961,9 @@ def wake_tv_legacy(ip: str, req: WakeRequest):
     return wake_tv(ip, req)
 
 
-def _react_index_file() -> Path:
-    return react_build_dir / "index.html"
-
-
-# React build assets under /static
-if react_static_dir.exists():
-    app.mount("/static", StaticFiles(directory=str(react_static_dir)), name="react-static")
-
-
-# Legacy static assets (previous HTML UI)
+# Mount static assets (CSS, JS)
 if static_dir.exists():
-    app.mount("/legacy-static", StaticFiles(directory=str(static_dir)), name="legacy-static")
-
-
-@app.get("/")
-def root():
-    """Serve the React UI as the default app."""
-    index = _react_index_file()
-    if index.exists():
-        return FileResponse(str(index))
-
-    # Fallback to legacy UI if React build isn't present
-    page = static_dir / "index.html"
-    if not page.exists():
-        page = static_dir / "status.html"
-    if not page.exists():
-        raise HTTPException(status_code=404, detail="No UI found (React build and legacy static missing)")
-    return FileResponse(str(page))
+    app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
 
 @app.get("/config/tvs.json")
@@ -1001,63 +974,30 @@ def serve_config():
     raise HTTPException(status_code=404, detail="Config not found")
 
 
-@app.get("/legacy")
-def legacy_root():
-    """Serve the legacy HTML UI entry point."""
+@app.get("/")
+def root():
     page = static_dir / "index.html"
     if not page.exists():
-        page = static_dir / "status.html"
-    if not page.exists():
-        raise HTTPException(status_code=404, detail="Legacy UI not found")
+        raise HTTPException(status_code=404, detail="UI not found")
     return FileResponse(str(page))
 
 
-@app.get("/legacy/status.html")
-def legacy_status_html():
+@app.get("/status.html")
+def status_page():
     page = static_dir / "status.html"
     if not page.exists():
-        raise HTTPException(status_code=404, detail="Legacy status page not found")
+        raise HTTPException(status_code=404, detail="Status page not found")
     return FileResponse(str(page))
 
 
-@app.get("/legacy/debug.html")
-def legacy_debug_html():
+@app.get("/debug.html")
+def debug_page():
     page = static_dir / "debug.html"
     if not page.exists():
-        raise HTTPException(status_code=404, detail="Legacy debug page not found")
+        raise HTTPException(status_code=404, detail="Debug page not found")
     return FileResponse(str(page))
 
-
-@app.get("/{file_path:path}")
-def react_spa_or_file(file_path: str):
-    """Serve React build files and SPA fallback.
-
-    - If the file exists in the React build output root, serve it.
-    - Otherwise, serve React index.html for client-side routing.
-    - Never hijack API paths.
-    """
-    normalized = file_path.lstrip("/")
-
-    # Avoid serving the SPA for API-like paths.
-    if normalized == "api" or normalized.startswith("api/"):
-        raise HTTPException(status_code=404, detail="Not found")
-
-    # Allow legacy static paths to be served via mount
-    if normalized == "legacy" or normalized.startswith("legacy/") or normalized.startswith("legacy-static/"):
-        raise HTTPException(status_code=404, detail="Not found")
-
-    # Serve files that exist in the React build root (favicon, manifest, etc.)
-    candidate = react_build_dir / normalized
-    if candidate.exists() and candidate.is_file():
-        return FileResponse(str(candidate))
-
-    # SPA fallback
-    index = _react_index_file()
-    if index.exists():
-        return FileResponse(str(index))
-
-    raise HTTPException(status_code=404, detail="UI not found")
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run(app, host="0.0.0.0", port=8009, reload=True)
