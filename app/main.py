@@ -796,6 +796,14 @@ def debug_page():
     return FileResponse(str(page))
 
 
+@app.get("/docs.html")
+def docs_page():
+    page = static_dir / "docs.html"
+    if not page.exists():
+        raise HTTPException(status_code=404, detail="Docs page not found")
+    return FileResponse(str(page))
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8009, reload=True)
