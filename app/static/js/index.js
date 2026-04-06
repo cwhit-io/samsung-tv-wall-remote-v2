@@ -1,159 +1,8 @@
 let tvData = [];
-let thumbnailRefreshInterval = null;
-let lastThumbnailFetch = 0;
-const THUMBNAIL_CACHE_MS = 60000; // 60 seconds
-let currentLayer = 1;
-let resolumeColumns = [];
+// Legacy client-side Resolume integration removed. The UI keeps a header
+// link to access the Resolume web UI directly, but all client-side calls
+// to server-side Resolume endpoints have been removed.
 let currentRemoteTV = null; // Track which TV the remote modal is controlling
-
-async function refreshThumbnail(force = false, layer = null) {
-    const now = Date.now();
-
-    // Use provided layer or current layer
-    const layerToUse = layer || currentLayer;
-
-    // Check if we should skip due to cache (unless force refresh)
-    if (!force && (now - lastThumbnailFetch) < THUMBNAIL_CACHE_MS) {
-        return;
-    }
-
-    const img = document.getElementById('thumbnail-image');
-    const loading = document.getElementById('thumbnail-loading');
-    const error = document.getElementById('thumbnail-error');
-
-    loading.classList.remove('hidden');
-    error.classList.add('hidden');
-    img.style.opacity = '0.5';
-
-    try {
-        // Add timestamp to prevent browser caching
-        const timestamp = new Date().getTime();
-        const response = await fetch(`/api/thumbnail?layer=${layerToUse}&t=${timestamp}`);
-
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
-        }
-
-        const blob = await response.blob();
-        const objectUrl = URL.createObjectURL(blob);
-
-        // Revoke old object URL if it exists
-        if (img.src && img.src.startsWith('blob:')) {
-            URL.revokeObjectURL(img.src);
-        }
-
-        img.src = objectUrl;
-        img.style.opacity = '1';
-        loading.classList.add('hidden');
-
-        // Update last fetch time
-        lastThumbnailFetch = now;
-
-    } catch (err) {
-        console.error('Error loading thumbnail:', err);
-        error.classList.remove('hidden');
-        img.style.opacity = '1';
-    } finally {
-        loading.classList.add('hidden');
-    }
-}
-
-async function loadResolumeColumns() {
-    try {
-        const res = await fetch('/api/resolume/columns');
-        if (res.ok) {
-            const data = await res.json();
-            resolumeColumns = data.columns || [];
-
-            const grid = document.getElementById('columns-grid');
-            grid.innerHTML = '';
-
-            // Filter out unused columns (Column #)
-            const usedColumns = resolumeColumns.filter(col => !col.name.includes('Column #'));
-
-            if (usedColumns.length === 0) {
-                grid.innerHTML = '<div class="text-sm text-slate-400 col-span-2 text-center py-4">No columns found</div>';
-                return;
-            }
-
-            usedColumns.forEach(column => {
-                const btn = document.createElement('button');
-                btn.onclick = () => triggerColumn(column.index);
-                // Check if column is connected (handle both boolean and string values)
-                const isConnected = column.connected === true || column.connected === 'Connected';
-                const isEmpty = column.connected === 'Empty';
-
-                let activeClass;
-                if (isConnected) {
-                    activeClass = 'bg-green-600 hover:bg-green-700 border-green-500';
-                } else if (isEmpty) {
-                    activeClass = 'bg-slate-700 hover:bg-slate-600 border-slate-600';
-                } else {
-                    activeClass = 'bg-blue-600 hover:bg-blue-700 border-blue-500';
-                }
-
-                btn.className = `px-3 py-2 text-sm font-medium rounded-md text-white ${activeClass} border transition-colors`;
-                btn.textContent = column.name || `Column ${column.index}`;
-                grid.appendChild(btn);
-            });
-        }
-    } catch (err) {
-        console.error('Error loading Resolume columns:', err);
-        const grid = document.getElementById('columns-grid');
-        grid.innerHTML = '<div class="text-sm text-red-400 col-span-2 text-center py-4">Error loading columns</div>';
-    }
-}
-
-async function triggerColumn(columnIndex) {
-    try {
-        const res = await fetch(`/api/resolume/column/${columnIndex}/connect`, {
-            method: 'POST'
-        });
-
-        if (res.ok) {
-            console.log(`Triggered column ${columnIndex}`);
-            // Refresh thumbnail and columns to show updated state
-            await Promise.all([refreshThumbnail(true), loadResolumeColumns()]);
-        } else {
-            console.error('Failed to trigger column');
-        }
-    } catch (err) {
-        console.error('Error triggering column:', err);
-    }
-}
-
-async function loadResolumeData() {
-    // Keep for backward compatibility, now just calls loadResolumeColumns
-    await loadResolumeColumns();
-}
-
-async function triggerSelectedClip() {
-    const clipSelect = document.getElementById('clip-select');
-    const selectedClip = parseInt(clipSelect.value);
-
-    if (isNaN(selectedClip) || selectedClip < 0) {
-        alert('Please select a valid clip');
-        return;
-    }
-
-    try {
-        const res = await fetch(`/api/resolume/clip/${selectedClip}/connect`, {
-            method: 'POST'
-        });
-
-        if (res.ok) {
-            console.log(`Triggered clip ${selectedClip}`);
-            await refreshThumbnail(true);
-            // Reload clips to update active status
-            await loadClipsForLayer(currentLayer);
-        } else {
-            alert('Failed to trigger clip');
-        }
-    } catch (err) {
-        console.error('Error triggering clip:', err);
-        alert('Error triggering clip');
-    }
-}
 
 let isGlobalCommandInProgress = false;
 
@@ -284,14 +133,50 @@ async function sendIndividualKey(key) {
 
 async function fetchTVs() {
     try {
-        const res = await fetch('/api/tvs/status');
-        if (!res.ok) throw new Error('Failed to fetch TVs');
+        // Quick path: fetch static TV list (fast, no network checks) and render
+        const listRes = await fetch('/api/tvs');
+        if (!listRes.ok) throw new Error('Failed to load TV list');
 
-        tvData = await res.json();
+        const list = await listRes.json();
+
+        // Initialize tvData with placeholders so UI renders immediately
+        tvData = list.map(t => ({
+            ip: t.ip,
+            name: t.name || t.ip,
+            mac: t.mac || '',
+            online: false,
+            ping_online: false,
+            ws_online: false,
+            token_verified: false,
+            power_state: null,
+        }));
+
         renderTVGrid();
-
         const loading = document.getElementById('loading');
         if (loading) loading.style.display = 'none';
+
+        // Background: fetch enriched status and patch cards when ready
+        try {
+            const statusRes = await fetch('/api/tvs/status');
+            if (statusRes.ok) {
+                const statusList = await statusRes.json();
+                // Merge status into tvData by IP
+                statusList.forEach(s => {
+                    const idx = tvData.findIndex(t => t.ip === s.ip);
+                    if (idx >= 0) {
+                        tvData[idx] = Object.assign({}, tvData[idx], s);
+                    } else {
+                        tvData.push(s);
+                    }
+                });
+                renderTVGrid();
+            } else {
+                console.warn('Status endpoint returned non-OK');
+            }
+        } catch (err) {
+            console.error('Error fetching TV statuses:', err);
+        }
+
     } catch (error) {
         console.error('Error fetching TVs:', error);
         const grid = document.getElementById('tv-grid');
@@ -449,7 +334,4 @@ async function refreshNow() {
 
 // Initial load and auto-refresh
 fetchTVs();
-loadResolumeColumns();
-refreshThumbnail(true); // Force initial load
 setInterval(fetchTVs, 10000); // Refresh every 10 seconds
-thumbnailRefreshInterval = setInterval(() => refreshThumbnail(false), 2000); // Check every 2 seconds but cache for 60s

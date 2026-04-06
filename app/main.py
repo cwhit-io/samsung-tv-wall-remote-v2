@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pathlib import Path
 from typing import List
 import asyncio
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import requests
 import socket
 import select
@@ -17,7 +17,7 @@ from app.config import load_tvs, save_tvs, CONFIG_PATH
 from app.models import TV, WakeRequest
 import app.wol as wol
 import app.utils as utils
-import app.thumbnail as thumbnail
+import app.keepalive as keepalive
 
 app = FastAPI(title="TV WOL Service")
 
@@ -38,11 +38,9 @@ import json
 
 router = APIRouter(prefix="/api")
 
-# Resolume configuration
-RESOLUME_IP = "10.10.97.83"
-RESOLUME_PORT = "8080"
-RESOLUME_BASE_URL = f"http://{RESOLUME_IP}:{RESOLUME_PORT}/api/v1"
-
+# NOTE: Legacy Resolume integration removed. The UI retains a header link
+# to the Resolume web UI; all server-side Resolume endpoints and thumbnail
+# fetching code were removed to simplify the service.
 
 def _get_tvs_dict():
     return load_tvs()
@@ -66,33 +64,59 @@ def tvs_status(force: bool = False):
     """
     tvs = _get_tvs_dict()
     result = []
-    for ip, data in tvs.items():
-        ping_online = utils.cached_ping_host(ip, force=force)
-        # default websocket port is 8002, allow override from config per-TV with key 'ws_port'
+
+    # Worker to perform checks for a single TV. Use slightly shorter timeouts
+    # to keep overall response latency low; results are cached by utils.
+    def _check_one(ip: str, data: dict):
         ws_port = data.get("ws_port", 8002)
-        ws_online = utils.cached_check_tcp_port(ip, ws_port, force=force)
         token = data.get("token")
-        token_verified = utils.cached_check_websocket_endpoint(ip, ws_port, token, force=force)
-        power_state = (
-            utils.cached_get_power_state(ip, ws_port, token, force=force) if token_verified else None
-        )
-        
-        # TV is considered "online" if either ping works OR websocket is accessible
-        # (Samsung TVs sometimes don't respond to ping but are actually on)
+        try:
+            ping_online = utils.cached_ping_host(ip, timeout=0.8, force=force)
+            ws_online = utils.cached_check_tcp_port(ip, ws_port, timeout=0.8, force=force)
+            token_verified = utils.cached_check_websocket_endpoint(ip, ws_port, token, timeout=0.8, force=force)
+            power_state = (
+                utils.cached_get_power_state(ip, ws_port, token, timeout=1.0, force=force) if token_verified else None
+            )
+        except Exception:
+            ping_online = False
+            ws_online = False
+            token_verified = False
+            power_state = None
+
         online = ping_online or ws_online
-        
-        result.append(
-            {
-                "ip": ip,
-                "name": data.get("name"),
-                "mac": data.get("mac"),
-                "online": online,
-                "ping_online": ping_online,
-                "ws_online": ws_online,
-                "token_verified": token_verified,
-                "power_state": power_state,
-            }
-        )
+        return {
+            "ip": ip,
+            "name": data.get("name"),
+            "mac": data.get("mac"),
+            "online": online,
+            "ping_online": ping_online,
+            "ws_online": ws_online,
+            "token_verified": token_verified,
+            "power_state": power_state,
+        }
+
+    # Run checks in parallel so slow/unreachable TVs don't block the whole request.
+    max_workers = min(20, max(4, len(tvs)))
+    with ThreadPoolExecutor(max_workers=max_workers) as ex:
+        futures = {ex.submit(_check_one, ip, data): ip for ip, data in tvs.items()}
+        for fut in as_completed(futures):
+            try:
+                result.append(fut.result())
+            except Exception:
+                # In case a future itself errors, include a minimal failed entry
+                ip = futures.get(fut)
+                data = tvs.get(ip, {})
+                result.append({
+                    "ip": ip,
+                    "name": data.get("name"),
+                    "mac": data.get("mac"),
+                    "online": False,
+                    "ping_online": False,
+                    "ws_online": False,
+                    "token_verified": False,
+                    "power_state": None,
+                })
+
     return result
 
 
@@ -502,258 +526,10 @@ async def send_key_to_tv(ip: str, request: dict):
         raise HTTPException(status_code=500, detail=f"Failed to send key: {str(e)}")
 
 
-@router.get("/thumbnail")
-async def get_thumbnail(layer: int = 1):
-    """Get the current thumbnail from Resolume and return as image.
-    
-    Query parameter:
-        layer: Layer index to get thumbnail from (default: 1)
-    """
-    try:
-        # Get Layer Info to find the Active Clip
-        layer_response = requests.get(f"{RESOLUME_BASE_URL}/composition/layers/{layer}", timeout=5)
-        layer_response.raise_for_status()
-        layer_data = layer_response.json()
-        
-        # Find the Connected Clip ID
-        active_clip_id = None
-        for clip in layer_data.get('clips', []):
-            connected_state = clip.get('connected', {}).get('value')
-            if connected_state == "Connected" or connected_state == 2:
-                active_clip_id = clip.get('id')
-                break
-        
-        if not active_clip_id:
-            # Return a 1x1 transparent pixel if no clip is active
-            # This prevents frontend errors while showing no content
-            transparent_pixel = b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\nIDATx\x9cc\x00\x01\x00\x00\x05\x00\x01\r\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82'
-            return Response(content=transparent_pixel, media_type="image/png")
-        
-        # Get the Thumbnail for that Clip ID
-        thumb_url = f"{RESOLUME_BASE_URL}/composition/clips/by-id/{active_clip_id}/thumbnail"
-        thumb_response = requests.get(thumb_url, timeout=5)
-        thumb_response.raise_for_status()
-        
-        return Response(content=thumb_response.content, media_type="image/jpeg")
-        
-    except requests.exceptions.Timeout:
-        raise HTTPException(status_code=504, detail="Resolume server timeout")
-    except requests.exceptions.ConnectionError:
-        raise HTTPException(status_code=503, detail="Cannot connect to Resolume server")
-    except requests.exceptions.RequestException as e:
-        raise HTTPException(status_code=503, detail=f"Failed to fetch thumbnail: {str(e)}")
-    except HTTPException:
-        raise
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
-
-
-@router.get("/resolume/layers")
-def get_resolume_layers():
-    """Get list of all layers from Resolume."""
-    try:
-        response = requests.get(f"{RESOLUME_BASE_URL}/composition/layers", timeout=5)
-        response.raise_for_status()
-        
-        layers_data = response.json()
-        # Return simplified layer info
-        layers = []
-        for layer in layers_data:
-            if isinstance(layer, dict):
-                layers.append({
-                    "id": layer.get("id"),
-                    "name": layer.get("name", {}).get("value", "Unknown"),
-                    "index": layer.get("index")
-                })
-        
-        return {"layers": layers}
-        
-    except requests.exceptions.Timeout:
-        raise HTTPException(status_code=504, detail="Resolume server timeout")
-    except requests.exceptions.ConnectionError:
-        raise HTTPException(status_code=503, detail="Cannot connect to Resolume server")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get layers: {str(e)}")
-
-
-@router.get("/resolume/columns")
-def get_resolume_columns(layer: int = 1):
-    """Get list of all columns from Resolume composition.
-
-    Note: Resolume's per-column 'connected' state is best reflected by looking
-    at the clips on a specific layer. This endpoint therefore accepts a
-    `layer` query param and derives `connected` from that layer's clips.
-    """
-    try:
-        # Get composition to find column count
-        comp_response = requests.get(f"{RESOLUME_BASE_URL}/composition", timeout=5)
-        comp_response.raise_for_status()
-        comp_data = comp_response.json()
-        
-        # Try to get columns from the composition structure
-        # Columns might be in the composition object or we need to iterate through layers
-        columns = []
-        
-        # Determine number of columns by checking the requested layer
-        layer_response = requests.get(f"{RESOLUME_BASE_URL}/composition/layers/{layer}", timeout=5)
-        if layer_response.status_code == 200:
-            layer_data = layer_response.json()
-            clips = layer_data.get('clips', [])
-            
-            # Get info for each column by index
-            for i in range(len(clips)):
-                column_index = i + 1
-                clip = clips[i]
-                connected = clip.get('connected', {}).get('value', False)
-                try:
-                    # Prefer the column header name from Resolume's columns API
-                    col_response = requests.get(f"{RESOLUME_BASE_URL}/composition/columns/{column_index}", timeout=2)
-                    if col_response.status_code == 200:
-                        col_data = col_response.json()
-                        name = col_data.get('name', {}).get('value', f'Column {column_index}')
-                    else:
-                        name = clip.get('name', {}).get('value', f'Column {column_index}')
-                except Exception:
-                    name = clip.get('name', {}).get('value', f'Column {column_index}')
-
-                columns.append({
-                    'index': column_index,
-                    'name': name,
-                    'connected': connected,
-                })
-        
-        return {'columns': columns}
-        
-    except requests.exceptions.Timeout:
-        raise HTTPException(status_code=504, detail="Resolume server timeout")
-    except requests.exceptions.ConnectionError:
-        raise HTTPException(status_code=503, detail="Cannot connect to Resolume server")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get columns: {str(e)}")
-
-
-@router.post("/resolume/column/{column_index}/connect")
-def trigger_resolume_column(column_index: int, layer: int = 1):
-    """Trigger (fire) a specific column in Resolume for a given layer.
-
-    Resolume's clip connect endpoints behave like triggers and are reliably
-    activated via an *empty POST* (no JSON body). We therefore map a
-    (layer, column) selection to the corresponding clip ID and trigger it.
-
-    Column index is 1-based (Column 1, Column 2, etc.)
-    """
-    try:
-        layer_response = requests.get(f"{RESOLUME_BASE_URL}/composition/layers/{layer}", timeout=5)
-        if layer_response.status_code != 200:
-            raise HTTPException(status_code=404, detail=f"Resolume layer {layer} not found")
-
-        layer_data = layer_response.json()
-        clips = layer_data.get('clips', [])
-        clip_idx = column_index - 1
-        if clip_idx < 0 or clip_idx >= len(clips):
-            raise HTTPException(status_code=404, detail=f"No clip at column {column_index} on layer {layer}")
-
-        clip_id = clips[clip_idx].get('id')
-        if not clip_id:
-            raise HTTPException(status_code=500, detail=f"Clip at column {column_index} on layer {layer} has no id")
-
-        # Trigger the clip (empty POST)
-        response = requests.post(
-            f"{RESOLUME_BASE_URL}/composition/clips/by-id/{clip_id}/connect",
-            timeout=5
-        )
-
-        if response.status_code not in [200, 204]:
-            response.raise_for_status()
-
-        return {
-            "status": "success",
-            "column": column_index,
-            "layer": layer,
-            "clip_id": clip_id,
-        }
-        
-    except requests.exceptions.Timeout:
-        raise HTTPException(status_code=504, detail="Resolume server timeout")
-    except requests.exceptions.ConnectionError:
-        raise HTTPException(status_code=503, detail="Cannot connect to Resolume server")
-    except requests.exceptions.HTTPError as e:
-        raise HTTPException(status_code=e.response.status_code, detail=f"Resolume API error: {str(e)}")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to trigger column: {str(e)}")
-
-
-
-@router.post("/resolume/layer/{layer_index}/connect")
-def connect_resolume_layer(layer_index: int):
-    """Connect (activate) a specific layer in Resolume."""
-    try:
-        # Set the layer's connect value to true
-        response = requests.post(
-            f"{RESOLUME_BASE_URL}/composition/layers/{layer_index}/connect",
-            json={"value": True},
-            timeout=5
-        )
-        response.raise_for_status()
-        
-        return {"status": "success", "layer": layer_index}
-        
-    except requests.exceptions.Timeout:
-        raise HTTPException(status_code=504, detail="Resolume server timeout")
-    except requests.exceptions.ConnectionError:
-        raise HTTPException(status_code=503, detail="Cannot connect to Resolume server")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to connect layer: {str(e)}")
-
-
-@router.get("/resolume/layer/{layer_index}/clips")
-def get_resolume_layer_clips(layer_index: int):
-    """Get all clips for a specific layer."""
-    try:
-        response = requests.get(f"{RESOLUME_BASE_URL}/composition/layers/{layer_index}", timeout=5)
-        response.raise_for_status()
-        layer_data = response.json()
-        
-        clips = []
-        for clip in layer_data.get('clips', []):
-            if isinstance(clip, dict):
-                clips.append({
-                    "id": clip.get("id"),
-                    "name": clip.get("name", {}).get("value", "Unknown"),
-                    "connected": clip.get("connected", {}).get("value")
-                })
-        
-        return {"layer": layer_index, "clips": clips}
-        
-    except requests.exceptions.Timeout:
-        raise HTTPException(status_code=504, detail="Resolume server timeout")
-    except requests.exceptions.ConnectionError:
-        raise HTTPException(status_code=503, detail="Cannot connect to Resolume server")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get clips: {str(e)}")
-
-
-@router.post("/resolume/clip/{clip_id}/connect")
-def connect_resolume_clip(clip_id: int):
-    """Connect (trigger) a specific clip in Resolume."""
-    try:
-        # Resolume clip connect behaves like a trigger: use an empty POST.
-        response = requests.post(
-            f"{RESOLUME_BASE_URL}/composition/clips/by-id/{clip_id}/connect",
-            timeout=5
-        )
-        response.raise_for_status()
-        
-        return {"status": "success", "clip_id": clip_id}
-        
-    except requests.exceptions.Timeout:
-        raise HTTPException(status_code=504, detail="Resolume server timeout")
-    except requests.exceptions.ConnectionError:
-        raise HTTPException(status_code=503, detail="Cannot connect to Resolume server")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to connect clip: {str(e)}")
+# Resolume endpoints removed: legacy server-side connection and thumbnail
+# handling were removed per request. The static UI still contains a header
+# link pointing at the Resolume web UI; no server-side Resolume integration
+# is present anymore.
 
 
 @router.get("/config/tvs")
@@ -938,6 +714,28 @@ def debug_wake_and_wait(req: DebugWakeRequest):
 
 # Include API router under /api
 app.include_router(router)
+
+
+# Start background keepalive task on startup and cancel on shutdown
+@app.on_event("startup")
+async def _start_keepalive():
+    try:
+        app.state.keepalive_task = asyncio.create_task(keepalive.keepalive_loop())
+    except Exception:
+        # ensure startup doesn't fail if keepalive has problems
+        import traceback
+        traceback.print_exc()
+
+
+@app.on_event("shutdown")
+async def _stop_keepalive():
+    task = getattr(app.state, "keepalive_task", None)
+    if task:
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
 
 
 # Backwards-compatible legacy routes (mirror /tvs/* to /api/tvs/*)

@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Documentation - TV Control Panel</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@radix-ui/colors@latest/slate.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@radix-ui/colors@latest/blue.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@radix-ui/colors@latest/green.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@radix-ui/colors@latest/red.css">
+    <style>
+        .code-block {
+            background-color: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            overflow-x: auto;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 0.875rem;
+            line-height: 1.5;
+        }
+        .endpoint-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin: 2rem 0 1rem 0;
+            padding: 1rem;
+            background-color: #0f172a;
+            border-left: 4px solid #3b82f6;
+            border-radius: 0.375rem;
+        }
+        .method-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 0.375rem;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        .method-get {
+            background-color: #dbeafe;
+            color: #0c4a6e;
+        }
+        .method-post {
+            background-color: #86efac;
+            color: #166534;
+        }
+        .param-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+        }
+        .param-table th,
+        .param-table td {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid #334155;
+        }
+        .param-table th {
+            background-color: #0f172a;
+            font-weight: 600;
+            color: #e2e8f0;
+        }
+        .param-table tbody tr:hover {
+            background-color: #1e293b;
+        }
+        .toc {
+            position: sticky;
+            top: 1rem;
+            background-color: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            max-height: calc(100vh - 2rem);
+            overflow-y: auto;
+        }
+        .toc a {
+            display: block;
+            padding: 0.5rem;
+            color: #94a3b8;
+            text-decoration: none;
+            border-radius: 0.375rem;
+            transition: all 0.2s;
+        }
+        .toc a:hover {
+            color: #e2e8f0;
+            background-color: #1e293b;
+            padding-left: 1rem;
+        }
+    </style>
+</head>
+
+<body class="min-h-screen bg-slate-950 text-slate-100">
+    <header class="bg-slate-900 border-b border-slate-800 shadow-lg sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center">
+                    <svg class="h-8 w-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                    <h1 class="ml-3 text-xl font-semibold text-slate-100">TV Control Panel</h1>
+                </div>
+                <nav class="flex space-x-4">
+                    <a href="/" class="px-3 py-2 rounded-md text-sm font-medium text-slate-300 hover:text-slate-100 hover:bg-slate-800 transition-colors">Home</a>
+                    <a href="/status.html" class="px-3 py-2 rounded-md text-sm font-medium text-slate-300 hover:text-slate-100 hover:bg-slate-800 transition-colors">Status</a>
+                    <a href="/debug.html" class="px-3 py-2 rounded-md text-sm font-medium text-slate-300 hover:text-slate-100 hover:bg-slate-800 transition-colors">Debug</a>
+                    <a href="/docs.html" class="px-3 py-2 rounded-md text-sm font-medium text-blue-400 bg-blue-950/50">Docs</a>
+                    <a href="http://10.10.97.83:8080/" target="_blank" class="px-3 py-2 rounded-md text-sm font-medium text-slate-300 hover:text-slate-100 hover:bg-slate-800 transition-colors">Resolume</a>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
+            <!-- Sidebar TOC -->
+            <div class="lg:col-span-1">
+                <div class="toc">
+                    <h3 class="text-slate-200 font-bold mb-4">Quick Links</h3>
+                    <a href="#tvs">List TVs</a>
+                    <a href="#tv-status">TV Status</a>
+                    <a href="#wake">Wake Commands</a>
+                    <a href="#power">Power Control</a>
+                    <a href="#remote">Remote Keys</a>
+                    <a href="#tokens">Token Management</a>
+                    <a href="#config">Configuration</a>
+                    <a href="#debug">Debug Endpoints</a>
+                </div>
+            </div>
+
+            <!-- Main Content -->
+            <div class="lg:col-span-3">
+                <h1 class="text-4xl font-bold text-slate-100 mb-2">API Documentation</h1>
+                <p class="text-slate-400 mb-8">Complete reference for the Samsung TV Control Panel REST API. All examples use curl; you can adapt them for your programming language.</p>
+
+                <!-- List TVs -->
+                <section id="tvs">
+                    <div class="endpoint-header">
+                        <span class="method-badge method-get">GET</span>
+                        <span class="text-lg font-mono">/api/tvs</span>
+                    </div>
+                    <p class="text-slate-300 mb-4">List all configured TVs with basic info (no network checks).</p>
+                    <div class="mb-4">
+                        <h4 class="text-slate-200 font-semibold mb-2">Example curl:</h4>
+                        <div class="code-block">
+<span class="text-blue-400">curl</span> -X GET <span class="text-green-400">"http://localhost:8009/api/tvs"</span>
+                        </div>
+                    </div>
+                    <div class="mb-4">
+                        <h4 class="text-slate-200 font-semibold mb-2">Example response:</h4>
+                        <div class="code-block">
+[
+  {
+    "ip": "192.168.1.100",
+    "name": "T1",
+    "mac": "aa:bb:cc:dd:ee:ff",
+    "token": "abc123...",
+    "ws_port": 8002
+  }
+]
+                        </div>
+                    </div>
+                </section>
+
+                <!-- TV Status -->
+                <section id="tv-status">
+                    <div class="endpoint-header">
+                        <span class="method-badge method-get">GET</span>
+                        <span class="text-lg font-mono">/api/tvs/status</span>
+                    </div>
+                    <p class="text-slate-300 mb-4">Get status of all TVs including online state, power state, and token verification.</p>
+                    <div class="mb-4">
+                        <h4 class="text-slate-200 font-semibold mb-2">Query Parameters:</h4>
+                        <table class="param-table">
+                            <thead>
+                                <tr>
+                                    <th>Parameter</th>
+                                    <th>Type</th>
+                                    <th>Default</th>
+                                    <th>Description</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><code>force</code></td>
+                                    <td>boolean</td>
+                                    <td>false</td>
+                                    <td>Bypass cache and perform fresh checks</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="mb-4">
+                        <h4 class="text-slate-200 font-semibold mb-2">Example curl:</h4>
+                        <div class="code-block">
+<span class="text-blue-400">curl</span> -X GET <span class="text-green-400">"http://localhost:8009/api/tvs/status"</span>
+<span class="text-blue-400">curl</span> -X GET <span class="text-green-400">"http://localhost:8009/api/tvs/status?force=true"</span>
+                        </div>
+                    </div>
+                    <div class="mb-4">
+                        <h4 class="text-slate-200 font-semibold mb-2">Example response:</h4>
+                        <div class="code-block">
+[
+  {
+    "ip": "192.168.1.100",
+    "name": "T1",
+    "mac": "aa:bb:cc:dd:ee:ff",
+    "online": true,
+    "ping_online": true,
+    "ws_online": true,
+    "token_verified": true,
+    "power_state": "on"
+  }
+]
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Wake Commands -->
+                <section id="wake">
+                    <div class="endpoint-header">
+                        <span class="method-badge method-post">POST</span>
+                        <span class="text-lg font-mono">/api/tvs/wake-all</span>
+                    </div>
+                    <p class="text-slate-300 mb-4">Send WOL magic packet to all configured TVs.</p>
+                    <div class="mb-4">
+                        <h4 class="text-slate-200 font-semibold mb-2">Request body:</h4>
+                        <div class="code-block">
+{
+  "port": 9
+}
+                        </div>
+                    </div>
+                    <div class="mb-4">
+                        <h4 class="text-slate-200 font-semibold mb-2">Example curl:</h4>
+                        <div class="code-block">
+<span class="text-blue-400">curl</span> -X POST <span class="text-green-400">"http://localhost:8009/api/tvs/wake-all"</span> \
+  -H <span class="text-green-400">"Content-Type: application/json"</span> \
+  -d <span class="text-yellow-400">'{"port": 9}'</span>
+                        </div>
+                    </div>
+
+                    <div class="endpoint-header">
+                        <span class="method-badge method-post">POST</span>
+                        <span class="text-lg font-mono">/api/tvs/{ip}/wake</span>
+                    </div>
+                    <p class="text-slate-300 mb-4">Send WOL magic packet to a specific TV.</p>
+                    <div class="mb-4">
+                        <h4 class="text-slate-200 font-semibold mb-2">Example curl:</h4>
+                        <div class="code-block">
+<span class="text-blue-400">curl</span> -X POST <span class="text-green-400">"http://localhost:8009/api/tvs/192.168.1.100/wake"</span> \
+  -H <span class="text-green-400">"Content-Type: application/json"</span> \
+  -d <span class="text-yellow-400">'{"port": 9}'</span>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Power Control -->
+                <section id="power">
+                    <div class="endpoint-header">
+                        <span class="method-badge method-post">POST</span>
+                        <span class="text-lg font-mono">/api/tvs/{ip}/power</span>
+                    </div>
+                    <p class="text-slate-300 mb-4">Toggle TV power state via WebSocket. If TV is offline, sends WOL first and waits for it to wake.</p>
+                    <div class="mb-4">
+                        <h4 class="text-slate-200 font-semibold mb-2">Example curl:</h4>
+                        <div class="code-block">
+<span class="text-blue-400">curl</span> -X POST <span class="text-green-400">"http://localhost:8009/api/tvs/192.168.1.100/power"</span>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Remote Keys -->
+                <section id="remote">
+                    <div class="endpoint-header">
+                        <span class="method-badge method-post">POST</span>
+                        <span class="text-lg font-mono">/api/tvs/{ip}/send-key</span>
+                    </div>
+                    <p class="text-slate-300 mb-4">Send a remote control key command to a specific TV.</p>
+                    <div class="mb-4">
+                        <h4 class="text-slate-200 font-semibold mb-2">Request body:</h4>
+                        <div class="code-block">
+{
+  "key": "KEY_POWER"
+}
+                        </div>
+                    </div>
+                    <div class="mb-4">
+                        <h4 class="text-slate-200 font-semibold mb-2">Common key codes:</h4>
+                        <table class="param-table">
+                            <thead>
+                                <tr>
+                                    <th>Key Code</th>
+                                    <th>Description</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr><td><code>KEY_POWER</code></td><td>Power toggle</td></tr>
+                                <tr><td><code>KEY_MUTE</code></td><td>Mute</td></tr>
+                                <tr><td><code>KEY_VOLUP</code></td><td>Volume up</td></tr>
+                                <tr><td><code>KEY_VOLDOWN</code></td><td>Volume down</td></tr>
+                                <tr><td><code>KEY_UP</code></td><td>Navigate up</td></tr>
+                                <tr><td><code>KEY_DOWN</code></td><td>Navigate down</td></tr>
+                                <tr><td><code>KEY_LEFT</code></td><td>Navigate left</td></tr>
+                                <tr><td><code>KEY_RIGHT</code></td><td>Navigate right</td></tr>
+                                <tr><td><code>KEY_ENTER</code></td><td>Select/OK</td></tr>
+                                <tr><td><code>KEY_HOME</code></td><td>Home screen</td></tr>
+                                <tr><td><code>KEY_MENU</code></td><td>Menu</td></tr>
+                                <tr><td><code>KEY_SOURCE</code></td><td>Input source</td></tr>
+                                <tr><td><code>KEY_RETURN</code></td><td>Back</td></tr>
+                                <tr><td><code>KEY_CHUP</code></td><td>Channel up</td></tr>
+                                <tr><td><code>KEY_CHDOWN</code></td><td>Channel down</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="mb-4">
+                        <h4 class="text-slate-200 font-semibold mb-2">Example curl:</h4>
+                        <div class="code-block">
+<span class="text-blue-400">curl</span> -X POST <span class="text-green-400">"http://localhost:8009/api/tvs/192.168.1.100/send-key"</span> \
+  -H <span class="text-green-400">"Content-Type: application/json"</span> \
+  -d <span class="text-yellow-400">'{"key": "KEY_VOLUP"}'</span>
+                        </div>
+                    </div>
+
+                    <div class="endpoint-header">
+                        <span class="method-badge method-post">POST</span>
+                        <span class="text-lg font-mono">/api/tvs/broadcast-key</span>
+                    </div>
+                    <p class="text-slate-300 mb-4">Send a key command to all TVs simultaneously.</p>
+                    <div class="mb-4">
+                        <h4 class="text-slate-200 font-semibold mb-2">Example curl:</h4>
+                        <div class="code-block">
+<span class="text-blue-400">curl</span> -X POST <span class="text-green-400">"http://localhost:8009/api/tvs/broadcast-key"</span> \
+  -H <span class="text-green-400">"Content-Type: application/json"</span> \
+  -d <span class="text-yellow-400">'{"key": "KEY_MUTE"}'</span>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Token Management -->
+                <section id="tokens">
+                    <div class="endpoint-header">
+                        <span class="method-badge method-post">POST</span>
+                        <span class="text-lg font-mono">/api/tvs/{ip}/token</span>
+                    </div>
+                    <p class="text-slate-300 mb-4">Request a new authentication token from a TV. TV must be ON and will display a pairing prompt.</p>
+                    <div class="mb-4">
+                        <h4 class="text-slate-200 font-semibold mb-2">Example curl:</h4>
+                        <div class="code-block">
+<span class="text-blue-400">curl</span> -X POST <span class="text-green-400">"http://localhost:8009/api/tvs/192.168.1.100/token"</span>
+                        </div>
+                    </div>
+
+                    <div class="endpoint-header">
+                        <span class="method-badge method-post">POST</span>
+                        <span class="text-lg font-mono">/api/tvs/refresh-all-tokens</span>
+                    </div>
+                    <p class="text-slate-300 mb-4">Request new tokens from all TVs that are online and accessible.</p>
+                    <div class="mb-4">
+                        <h4 class="text-slate-200 font-semibold mb-2">Example curl:</h4>
+                        <div class="code-block">
+<span class="text-blue-400">curl</span> -X POST <span class="text-green-400">"http://localhost:8009/api/tvs/refresh-all-tokens"</span>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Configuration -->
+                <section id="config">
+                    <div class="endpoint-header">
+                        <span class="method-badge method-get">GET</span>
+                        <span class="text-lg font-mono">/api/tvs/{ip}</span>
+                    </div>
+                    <p class="text-slate-300 mb-4">Get detailed configuration for a specific TV.</p>
+                    <div class="mb-4">
+                        <h4 class="text-slate-200 font-semibold mb-2">Example curl:</h4>
+                        <div class="code-block">
+<span class="text-blue-400">curl</span> -X GET <span class="text-green-400">"http://localhost:8009/api/tvs/192.168.1.100"</span>
+                        </div>
+                    </div>
+
+                    <div class="endpoint-header">
+                        <span class="method-badge method-get">GET</span>
+                        <span class="text-lg font-mono">/config/tvs.json</span>
+                    </div>
+                    <p class="text-slate-300 mb-4">Get the raw configuration file (same as /api/tvs but as plain JSON).</p>
+                    <div class="mb-4">
+                        <h4 class="text-slate-200 font-semibold mb-2">Example curl:</h4>
+                        <div class="code-block">
+<span class="text-blue-400">curl</span> -X GET <span class="text-green-400">"http://localhost:8009/config/tvs.json"</span>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Debug Endpoints -->
+                <section id="debug">
+                    <div class="endpoint-header">
+                        <span class="method-badge method-get">GET</span>
+                        <span class="text-lg font-mono">/debug/ping</span>
+                    </div>
+                    <p class="text-slate-300 mb-4">Test if a TV responds to ping.</p>
+                    <div class="mb-4">
+                        <h4 class="text-slate-200 font-semibold mb-2">Query Parameters:</h4>
+                        <table class="param-table">
+                            <thead>
+                                <tr>
+                                    <th>Parameter</th>
+                                    <th>Type</th>
+                                    <th>Default</th>
+                                    <th>Description</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr><td><code>ip</code></td><td>string</td><td>required</td><td>TV IP address</td></tr>
+                                <tr><td><code>force</code></td><td>boolean</td><td>false</td><td>Bypass cache</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="mb-4">
+                        <h4 class="text-slate-200 font-semibold mb-2">Example curl:</h4>
+                        <div class="code-block">
+<span class="text-blue-400">curl</span> -X GET <span class="text-green-400">"http://localhost:8009/debug/ping?ip=192.168.1.100"</span>
+                        </div>
+                    </div>
+
+                    <div class="endpoint-header">
+                        <span class="method-badge method-get">GET</span>
+                        <span class="text-lg font-mono">/debug/port</span>
+                    </div>
+                    <p class="text-slate-300 mb-4">Check if a TCP port is open on a TV.</p>
+                    <div class="mb-4">
+                        <h4 class="text-slate-200 font-semibold mb-2">Query Parameters:</h4>
+                        <table class="param-table">
+                            <thead>
+                                <tr>
+                                    <th>Parameter</th>
+                                    <th>Type</th>
+                                    <th>Default</th>
+                                    <th>Description</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr><td><code>ip</code></td><td>string</td><td>required</td><td>TV IP address</td></tr>
+                                <tr><td><code>port</code></td><td>integer</td><td>8002</td><td>Port to check</td></tr>
+                                <tr><td><code>force</code></td><td>boolean</td><td>false</td><td>Bypass cache</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="mb-4">
+                        <h4 class="text-slate-200 font-semibold mb-2">Example curl:</h4>
+                        <div class="code-block">
+<span class="text-blue-400">curl</span> -X GET <span class="text-green-400">"http://localhost:8009/debug/port?ip=192.168.1.100&port=8002"</span>
+                        </div>
+                    </div>
+
+                    <div class="endpoint-header">
+                        <span class="method-badge method-get">GET</span>
+                        <span class="text-lg font-mono">/api/tvs/{ip}/ws-check</span>
+                    </div>
+                    <p class="text-slate-300 mb-4">Verify WebSocket endpoints and token validity for a TV.</p>
+                    <div class="mb-4">
+                        <h4 class="text-slate-200 font-semibold mb-2">Example curl:</h4>
+                        <div class="code-block">
+<span class="text-blue-400">curl</span> -X GET <span class="text-green-400">"http://localhost:8009/api/tvs/192.168.1.100/ws-check"</span>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Error Handling -->
+                <section class="mt-12 p-6 bg-slate-900 border border-slate-800 rounded-lg">
+                    <h2 class="text-2xl font-bold text-slate-100 mb-4">Error Handling</h2>
+                    <p class="text-slate-300 mb-4">All endpoints return standard HTTP status codes and JSON error messages.</p>
+                    <div class="code-block">
+{
+  "detail": "TV not found"
+}
+                    </div>
+                    <div class="mt-4 space-y-2 text-sm text-slate-400">
+                        <p><strong class="text-slate-300">200 OK</strong> — Request succeeded</p>
+                        <p><strong class="text-slate-300">400 Bad Request</strong> — Invalid parameters or missing required fields</p>
+                        <p><strong class="text-slate-300">404 Not Found</strong> — TV or endpoint not found</p>
+                        <p><strong class="text-slate-300">500 Internal Server Error</strong> — Server error; check logs</p>
+                        <p><strong class="text-slate-300">503 Service Unavailable</strong> — Cannot reach the TV or its service</p>
+                        <p><strong class="text-slate-300">504 Gateway Timeout</strong> — Request timed out (TV is slow or unreachable)</p>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </main>
+
+    <footer class="mt-12 bg-slate-900 border-t border-slate-800">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <div class="flex items-center justify-between">
+                <p class="text-sm text-slate-500">
+                    &copy; 2026 TV Control Panel. API Documentation.
+                </p>
+            </div>
+        </div>
+    </footer>
+</body>
+
+</html>
