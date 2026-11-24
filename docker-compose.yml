@@ -1,8 +1,6 @@
-version: '3.8'
-
 services:
   tv-remote:
-    build: .
+    image: ghcr.io/cwhit-io/samsung-tv-wall-remote-v2:latest
     ports:
       - "8089:8009"
     volumes:
